@@ -26,6 +26,7 @@ What the game claims to teach:
 - Authority is sustained by multiple sources at once — public mood, elite alignment, narrative coherence, material capacity, ecological conditions, capability frontiers. These erode unevenly. Collapse is rarely total until very late.
 - The visible surface of a policy regime is rarely where its consequential decisions live. Crises that look technical are often legitimacy crises; crises that look legitimacy-driven are often capability-driven.
 - Language is load-bearing. The way a policy is written matters to what it does. This is true in real governance and it is true in the simulation; the simulation makes it legible by being legible itself.
+- Governance happens in the presence of multiple positions, not in a vacuum. A policy move is also a choice about whose advice to take, whose framing to adopt, whose warning to discount. The in-play advisor function makes this legible by surfacing real, corpus-grounded positions the player can weigh or reject.
 
 What the game does NOT claim to teach:
 
@@ -64,6 +65,7 @@ The minimum viable version is small on purpose. It exists to test whether the de
 - Six state axes — five core (legitimacy, fiscal slack, elite alignment, ecological debt, narrative coherence) plus one AI-specific (capability frontier). Each axis has a visible signal layer and a hidden threshold layer.
 - Three collapse modes — legitimacy collapse, technical collapse, narrative capture collapse — each producing a distinct post-game reveal.
 - An interpretation grammar that resolves free-text policy input into state-vector deltas, grounded in a wiki built from a curated subset of the Metaviews archive.
+- An in-play advisor function — a small cast of corpus-grounded voices (e.g. frontier-lab, civil-society, state-security, open-source, international-ally) the player can consult before writing their policy. Advisors describe how their represented position sees the crisis; they do not recommend actions. The function is a literacy scaffold, not an answer-giving device.
 - A shareable artifact that reports on the player's run as an AI policy artifact and invites further play.
 - A wiki built from a curated corpus of ~60–100 source documents (Metaviews posts and signals) plus game-specific entries that make the game's own claims auditable.
 - Operator tooling minimal but real — at minimum the ability to inspect, audit, and update the wiki.
