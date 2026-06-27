@@ -17,11 +17,19 @@ This project is being designed deliberately, not assembled quickly. The wiki, th
 
 ```
 docs/          Design and specification documents
+  01-corpus-synthesis.md   What the Metaviews archive gives us (read first)
+  (more forthcoming)
 corpus/        Seed material — curated Metaviews posts, signals, wiki entries
 wiki/          (Future) The Polycrisis LLM-wiki, organized for gameplay
 scripts/       (Future) Build, ingestion, and evaluation scripts
 src/           (Future) The game itself
 ```
+
+## Reading order for new contributors
+
+1. `../metaviews-website/wiki/index.md` — the parent corpus catalog, fits in one context window.
+2. `docs/01-corpus-synthesis.md` — what the corpus gives us and what it doesn't.
+3. Forthcoming docs on state model, interpretation grammar, crisis anatomy, and the shareable artifact.
 
 ## Naming and tone
 
