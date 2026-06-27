@@ -17,8 +17,11 @@ This project is being designed deliberately, not assembled quickly. The wiki, th
 
 ```
 docs/          Design and specification documents
-  01-corpus-synthesis.md   What the Metaviews archive gives us (read first)
-  (more forthcoming)
+  00-vision.md             Root — purpose, framing, MVP-0 scope (read first)
+  01-corpus-synthesis.md   What the Metaviews archive gives us
+  02-design-principles.md  15 principles, 4 parts
+  03-orchestrator-role.md  Six recurring activities, operational texture
+  04-roadmap.md            (forthcoming) MVP-0 build order, deferred items
 corpus/        Seed material — curated Metaviews posts, signals, wiki entries
 wiki/          (Future) The Polycrisis LLM-wiki, organized for gameplay
 scripts/       (Future) Build, ingestion, and evaluation scripts
@@ -28,8 +31,11 @@ src/           (Future) The game itself
 ## Reading order for new contributors
 
 1. `../metaviews-website/wiki/index.md` — the parent corpus catalog, fits in one context window.
-2. `docs/01-corpus-synthesis.md` — what the corpus gives us and what it doesn't.
-3. Forthcoming docs on state model, interpretation grammar, crisis anatomy, and the shareable artifact.
+2. `docs/00-vision.md` — the root document, lays out the project's two purposes, MVP-0 scope, and what is and isn't being claimed.
+3. `docs/01-corpus-synthesis.md` — what the parent corpus gives us and what it doesn't.
+4. `docs/02-design-principles.md` — the principles any design decision should respect.
+5. `docs/03-orchestrator-role.md` — the ongoing work of tending the project.
+6. `docs/04-roadmap.md` (forthcoming) — what ships in MVP-0, what comes next.
 
 ## Naming and tone
 

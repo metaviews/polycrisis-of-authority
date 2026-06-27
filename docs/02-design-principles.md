@@ -60,7 +60,7 @@ The wiki has a `mechanics/` entry type distinct from the corpus entry types. `me
 
 ### Principle 2.4 — Position-representation is a corpus-grounded claim
 
-When an advisor voice speaks for a position (e.g. "the frontier-lab advisor"), that voice is grounded in specific corpus entries documenting that position. The grounding is auditable from inside the artifact.
+When an advisor voice speaks for a position — the MVP-0 cast of frontier-lab, civil-society, state-security, open-source, and international-ally is a worked example — that voice is grounded in specific corpus entries documenting that position. The grounding is auditable from inside the artifact.
 
 **Why this principle:** the advisor function is a literacy scaffold, not a multiple-choice menu. Its value depends on the represented positions being real, documented, and contestable. An advisor voice that has no corpus grounding is decoration. Advisors are constrained to *describe* how a represented position sees the crisis — they do not recommend actions, do not suggest specific policy language, and do not collapse into answer-giving. A player who consults an advisor and writes the resulting policy in the advisor's own words has not governed; they have transcribed. The literacy claim requires that the player's authored text remain the input that gets interpreted.
 
