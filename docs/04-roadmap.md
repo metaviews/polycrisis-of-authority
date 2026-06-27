@@ -19,7 +19,7 @@ The phases are sequential by default. A later phase does not begin until the pri
 
 ## Phase 1 — Wiki and corpus (before MVP-0)
 
-**Scope.** The Polycrisis wiki itself. Curated corpus entries drawn from the Metaviews archive. The game-specific `mechanics/` entry type. The wiki's index, log, and audit tooling. The OpenRouter client configured for swappable models.
+**Scope.** The Polycrisis wiki itself. Curated corpus entries drawn from the Metaviews archive. The game-specific `mechanics/` entry type. The wiki's index, log, and audit tooling. The OpenRouter client configured for swappable models. Operational prototypes that probe how the model reads candidate corpus material, with prototype outputs filed as wiki entries or wiki log entries per Principle 4.5 (Dancing with the Details in the Design).
 
 **Build order.**
 
@@ -45,7 +45,7 @@ The phases are sequential by default. A later phase does not begin until the pri
 
 ## Phase 2 — State model and grammar (MVP-0 core)
 
-**Scope.** The state model with all six axes (legitimacy, fiscal slack, elite alignment, ecological debt, narrative coherence, capability frontier). The interpretation grammar that resolves free-text policy input into state-vector deltas. The crisis anatomy drafted against the four failure patterns (upstream embedding, compute and capability escape, legitimacy-erosion cascade, memetic and narrative capture). The advisor function with the MVP-0 cast of five voices (frontier-lab, civil-society, state-security, open-source, international-ally). The three collapse modes (legitimacy collapse, technical collapse, narrative capture collapse) as the simulation's terminal states.
+**Scope.** The state model with all six axes (legitimacy, fiscal slack, elite alignment, ecological debt, narrative coherence, capability frontier). The interpretation grammar that resolves free-text policy input into state-vector deltas. The crisis anatomy drafted against the four failure patterns (upstream embedding, compute and capability escape, legitimacy-erosion cascade, memetic and narrative capture). The advisor function with the MVP-0 cast of five voices (frontier-lab, civil-society, state-security, open-source, international-ally). The three collapse modes (legitimacy collapse, technical collapse, narrative capture collapse) as the simulation's terminal states. Per Principle 4.5, this phase's specs are drafted in dialogue with operational prototypes — probes against the model that evoke what each spec should feel like before the spec is committed.
 
 **Build order.**
 

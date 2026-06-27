@@ -134,6 +134,16 @@ No public query interface, search bar, or status dashboard is exposed until the 
 
 **What this constrains:** MVP-0 does not include a public wiki query endpoint. The artifact is the only public surface that exposes wiki content, and it does so in a curated way.
 
+### Principle 4.5 — Dancing with the Details in the Design
+
+The design specs and the operational prototypes are in dialogue, not in sequence. Prototypes evoke what the system feels like; specs commit what the system does. Neither is sufficient alone.
+
+**Why this principle:** the literacy claim depends on the simulation *feeling* right — the texture of policy under pressure, the gap between intent and effect, the slow collapse after apparent success. That feeling cannot be designed from a spec alone. It has to be felt during design, by people doing the designing. Specs without prototypes describe a system that may not feel right when built; prototypes without specs produce ephemera that cannot be audited or extended. The case-study claim — that the model reads policy in a state-sensitive, corpus-grounded way — depends on the design team having *observed* the model read policy, not just asserted that it does.
+
+**What this constrains:** the design process includes operational prototypes as a first-class activity, not a separate phase after design is "done." Each major spec (state model, interpretation grammar, crisis anatomy, advisor templates) gets a prototyping moment that informs the spec — probes against the model, observations of behavior, "what does this feel like?" experiments. Prototype outputs are filed, not thrown away: probe runs, observed-model-behavior notes, and the orchestrator's interpretation of what the probes revealed become wiki entries or wiki log entries. The wiki log records not just what changed in the wiki but what the design team learned about how the system works.
+
+The posture is the middle position: lightweight probes during spec drafting, with the option to escalate to a more substantial prototype environment once the state model and grammar specs are committed. Specs remain authoritative for what the system does; prototypes inform what specs to write and how to refine them after they're committed.
+
 ## How to use this document
 
 When proposing a new design decision — a new state axis, a new crisis pattern, a new advisor voice, a new artifact section — evaluate it against the principles here. A proposal that conflicts with a principle is either a bad proposal or evidence that the principle needs revision. In either case, the conflict is the conversation to have, not a thing to paper over.

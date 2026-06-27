@@ -16,6 +16,8 @@ The orchestrator's scope spans six state axes (legitimacy, fiscal slack, elite a
 
 The orchestrator's work falls into six recurring activities. Each is described with its trigger, its cadence, its inputs, its outputs, and the kind of judgment it requires.
 
+The work described here is also informed by operational prototypes — probes against the model that evoke what the system feels like during design (Principle 4.5, Dancing with the Details in the Design). Prototype outputs become inputs to the activities below: a probe run might surface a grammar refinement (Activity 2), a wiki gap (Activity 1), a model-behavior observation worth filing (Activity 6). The orchestrator's prototyping is lightweight and integrated with the rest of the work, not a separate phase.
+
 ### 1. Wiki curation
 
 **Trigger:** new source material becomes available (a Metaviews archive post is filed, a Pressure Systems edition is published, an external document is identified as relevant); a wiki entry is found to be inaccurate or out of date; a wiki entry is found to be missing.
