@@ -4,7 +4,7 @@ _Compiled from a read-through of the Metaviews wiki structure, the load-bearing 
 
 This document is the bridge between the Metaviews corpus and the Polycrisis design. Its job is to make explicit what the corpus gives us — both in terms of usable material and in terms of editorial framing — so that subsequent design decisions (state model, interpretation grammar, crisis anatomy) can be drafted against concrete substance rather than abstractions.
 
-The corpus is unusually well-suited to this project. The Metaviews archive is not "AI policy content assembled for a game." It is a sustained, decades-long intelligence practice that has been tracking the very questions the game asks — how authority moves, what legitimizes it, where it collapses, how language and infrastructure reshape it — and has developed its own analytic vocabulary for doing so. Polycrisis inherits that vocabulary. It does not need to invent one.
+The corpus is unusually well-suited to this project. The Metaviews archive (parent project at `../metaviews-website/`, with the wiki under `../metaviews-website/wiki/`) is not "AI policy content assembled for a game." It is a sustained, decades-long intelligence practice that has been tracking the very questions the game asks — how authority moves, what legitimizes it, where it collapses, how language and infrastructure reshape it — and has developed its own analytic vocabulary for doing so. Polycrisis inherits that vocabulary. It does not need to invent one.
 
 ## What the corpus gives us, in four layers
 
