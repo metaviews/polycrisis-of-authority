@@ -10,6 +10,8 @@ The garden metaphor from the vision doc is the right frame. The orchestrator is 
 
 The orchestrator is the person (or small group) who curates the wiki, refines the interpretation grammar, curates the advisor cast, reviews aggregated player patterns, and tends the project's epistemic integrity over time.
 
+The orchestrator's scope spans six state axes (legitimacy, fiscal slack, elite alignment, ecological debt, narrative coherence, capability frontier), three collapse modes (legitimacy collapse, technical collapse, narrative capture), and five advisor voices (frontier-lab, civil-society, state-security, open-source, international-ally) — each enumerated in the vision and roadmap docs. The orchestrator's activities apply across that whole surface, not to specific axes in isolation; this document is organized by *kind of work*, not by *which axis the work touches*.
+
 ## What the orchestrator actually does
 
 The orchestrator's work falls into six recurring activities. Each is described with its trigger, its cadence, its inputs, its outputs, and the kind of judgment it requires.
