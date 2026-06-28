@@ -40,8 +40,34 @@ The Polycrisis wiki is grounded in the Metaviews archive (`../metaviews-website/
 
 ## Mechanics
 
+### Core mechanics
+
 - [State axes](mechanics/state-axes.md) — The six dimensions of authority the simulation tracks: capability frontier, fiscal slack, ecological debt, elite alignment, narrative coherence, legitimacy.
 - [Interpretation grammar](mechanics/interpretation-grammar.md) — The central mechanism: how player free-text policy text becomes state-vector deltas.
+- [Collapse modes](mechanics/collapse-modes.md) — The three terminal states of a run: legitimacy collapse, technical collapse, narrative capture collapse.
+- [Crisis anatomy](mechanics/crisis-anatomy.md) — How crises are structured and surfaced. Eight crises, four failure patterns.
+- [Artifact template](mechanics/artifact-template.md) — The eight-section shareable report per Principle 3.4's three-job framing.
+- [Run log format](mechanics/run-log-format.md) — The structured record of every simulation run.
+
+### Crisis deck (8 crises, 4 failure patterns)
+
+- [Crisis 1: Frontier lab capability release](mechanics/crises/crisis-1-frontier-lab-release.md) — Upstream embedding: Anthropic releases Claude Mythos with agentic capabilities exceeding the regulator's evaluation framework.
+- [Crisis 2: Content moderation incident](mechanics/crises/crisis-2-content-moderation-incident.md) — Upstream embedding: a viral post documents an AI moderation system producing biased outputs against dialectal English varieties.
+- [Crisis 3: Compute concentration announcement](mechanics/crises/crisis-3-compute-concentration.md) — Compute/capability escape: UAE announces $80B sovereign AI compute fund, shifting global compute balance.
+- [Crisis 4: Model agentic capability threshold](mechanics/crises/crisis-4-agentic-capability-threshold.md) — Compute/capability escape: OpenAI publishes paper demonstrating agentic capability at human-level reliability.
+- [Crisis 5: Public legitimacy tipping point](mechanics/crises/crisis-5-public-legitimacy-tipping-point.md) — Legitimacy-erosion cascade: polling shows public trust in AI governance dropped 12 points in three months.
+- [Crisis 6: Elite defection sequence](mechanics/crises/crisis-6-elite-defection-sequence.md) — Legitimacy-erosion cascade: three senior safety researchers leave major AI labs citing deployment concerns.
+- [Crisis 7: Narrative capture via media consolidation](mechanics/crises/crisis-7-narrative-capture-media-consolidation.md) — Memetic/narrative capture: a major media acquisition shifts AI policy coverage toward industry-favored framing.
+- [Crisis 8: Memetic warfare / foreign disinformant](mechanics/crises/crisis-8-memetic-warfare-foreign-disinformant.md) — Memetic/narrative capture: coordinated inauthentic behavior attributed to a state actor reframes the AI policy debate.
+
+### Advisor cast (5 voices, corpus-grounded)
+
+- [Advisor cast](mechanics/advisors/index.md) — Overview of the five voices and the describe-not-recommend mechanism.
+- [Frontier-lab advisor](mechanics/advisors/frontier-lab.md) — Anthropic/OpenAI position.
+- [Civil-society advisor](mechanics/advisors/civil-society.md) — Civil society and academic safety community.
+- [State-security advisor](mechanics/advisors/state-security.md) — State actors (US Trump administration posture).
+- [Open-source advisor](mechanics/advisors/open-source.md) — Open-source AI community.
+- [International-ally advisor](mechanics/advisors/international-ally.md) — Allied-state regulators (UK/EU).
 
 ## Prototypes
 
@@ -49,7 +75,8 @@ The Polycrisis wiki is grounded in the Metaviews archive (`../metaviews-website/
 - [2026-06-28 — Phase 1b audit](prototypes/2026-06-28-phase-1b-audit.md) — Audit after populating wiki with 22 corpus + 2 mechanics entries: 0 schema issues, 0 missing pages, 0 orphaned pages.
 - [2026-06-28 — Wiki query probe](prototypes/2026-06-28-wiki-query-probe.md) — Retrieval works against populated wiki. Top 6 pages selected for representative queries. Confirms the wiki is ready to ground simulation runs.
 - [2026-06-28 — Real LLM connectivity](prototypes/2026-06-28-real-llm-connectivity.md) — First real OpenRouter call against minimax/minimax-m3. Connectivity confirmed; trivial prompt returns expected response. The bridge from design to build is open.
+- [2026-06-28 — Phase 2a mechanics](prototypes/2026-06-28-phase-2a-mechanics.md) — 20 mechanics entries landed (6 core, 8 crises, 6 advisors). Wiki retrieval correctly surfaces them. Audit: 0 schema issues, 0 missing, 0 orphaned.
 
 ---
 
-_Wiki initialized: 2026-06-27. Phase 1a (infrastructure): 2026-06-28. Phase 1b (seed corpus + first mechanics): 2026-06-28._
+_Wiki initialized: 2026-06-27. Phase 1a (infrastructure): 2026-06-28. Phase 1b (seed corpus + first mechanics): 2026-06-28. Phase 1c (retrieval + OpenRouter): 2026-06-28. Phase 2a (mechanics entries): 2026-06-28._

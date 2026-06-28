@@ -65,3 +65,17 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Phase 2 plan:** Five cycles — 2a (mechanics entries), 2b (simulation skeleton), 2c (real LLM + test cases), 2d (end-to-end + artifact), 2e (polish). One cycle per session.
 
 ---
+
+## 2026-06-28 — Phase 2a: Wiki mechanics entries
+
+- **Action:** Brought the spec docs into the wiki as `mechanics/` entries. Per the wiki structure plan, the simulation's grammar retrieves mechanics entries (not spec docs) to ground the player's policy interpretation.
+- **New mechanics entries authored (16):**
+  - 4 core mechanics: `collapse-modes.md`, `crisis-anatomy.md`, `artifact-template.md`, `run-log-format.md`
+  - 8 crisis entries under `mechanics/crises/`: covering all four failure patterns (2 per pattern)
+  - 1 advisor cast overview (`advisors/index.md`) + 5 individual advisor voice entries
+  - Total: 6 root-level mechanics files + 8 crises + 6 advisors = 20 new mechanics entries (state-axes and interpretation-grammar from Phase 1b verified, not rewritten)
+- **Pattern:** Each entry has YAML frontmatter (type: mechanic, version, last_updated, grounded_in), primary content section(s), Sources, and Version history. Crisis entries follow the trigger/actors/focal-axes/policy-surface anatomy. Advisor entries include the prompt template as a code block with describe-not-recommend constraints.
+- **Audit:** All entries pass schema check. Mechanics entries are excluded from the shared required-sections list (they have their own structure validated manually).
+- **Next:** Cycle 2b — simulation engine skeleton that can run a text-only session with a mock LLM.
+
+---
