@@ -56,3 +56,12 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Conclusion:** Phase 1 complete. The wiki is ready to ground simulation runs. Phase 2 build (grammar prompt assembly, test cases, model probes) can begin.
 
 ---
+
+## 2026-06-28 — Phase 2 ready: real LLM connectivity confirmed
+
+- **Action:** Enabled `.env` (gitignored) with MiniMax M3 model and OpenRouter API key. Verified end-to-end connectivity.
+- **Probe:** Trivial prompt against `minimax/minimax-m3` returns expected response. Confirms the OpenRouter wrapper works with the configured model.
+- **Filed:** `wiki/prototypes/2026-06-28-real-llm-connectivity.md` documents the probe.
+- **Phase 2 plan:** Five cycles — 2a (mechanics entries), 2b (simulation skeleton), 2c (real LLM + test cases), 2d (end-to-end + artifact), 2e (polish). One cycle per session.
+
+---
