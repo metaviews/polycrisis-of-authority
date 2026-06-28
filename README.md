@@ -8,11 +8,6 @@ A simulation game where you begin already in power and must govern through a con
 
 This project is being designed deliberately, not assembled quickly. The wiki, the grammar, the state model, the crisis anatomy, and the shareable artifact are being specified against the curated Metaviews corpus as ground truth, with the LLM as a documented and swappable component of the system.
 
-## Relationship to other projects
-
-- **`../metaviews-website/`** — The parent intelligence practice. Polycrisis draws on the Metaviews archive as the seed corpus for its wiki. The wiki is *not* the same as Metaviews' own wiki; it is a specialized downstream consumer with its own curation logic.
-- **`../openflows/`** — Adjacent project; may share infrastructure patterns (Fastify admin server, HTMX UI) but is a separate system with separate goals.
-
 ## Structure
 
 ```

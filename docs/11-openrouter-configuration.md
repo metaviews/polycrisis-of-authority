@@ -38,16 +38,13 @@ OPENROUTER_API_KEY=
 # framing.
 #
 # Examples of valid model identifiers:
-#   openai/gpt-4o
-#   anthropic/claude-3.5-sonnet
-#   google/gemini-flash-1.5
-#   minimax/MiniMax-M3 (set explicitly for the MiniMax case study)
-OPENROUTER_MODEL=openai/gpt-4o
+#   minimax/minimax-m3 (set explicitly for the MiniMax case study)
+OPENROUTER_MODEL=minimax/minimax-m3
 
 # Fallback model (optional)
 # Used when the primary model returns 429 (rate limit) or other transient errors.
 # Should be from a different provider than the primary to avoid correlated failures.
-FALLBACK_OPENROUTER_MODEL=anthropic/claude-3.5-sonnet
+FALLBACK_OPENROUTER_MODEL=deepseek/deepseek-v4-flash
 
 # Wiki retrieval settings (optional)
 # Number of wiki pages to retrieve per query. Default 6 (inherited from parent).
@@ -77,7 +74,7 @@ When the orchestrator wants to swap models, they:
 4. Log the model change in the wiki log per the orchestrator role's Activity 5.
 5. Optionally run before/after comparison runs to observe behavior differences.
 
-The model identifier follows OpenRouter's format: `provider/model-name`, e.g., `anthropic/claude-3.5-sonnet`, `openai/gpt-4o`, `minimax/MiniMax-M3`. OpenRouter's API accepts this format directly.
+The model identifier follows OpenRouter's format: `provider/model-name`, e.g., `anthropic/claude-3.5-sonnet`, `openai/gpt-4o`, `minimax/minimax-m3`. OpenRouter's API accepts this format directly.
 
 ### Why no per-turn model switching
 
@@ -85,15 +82,6 @@ Per-turn model switching would produce runs whose behavior depends on which mode
 
 A future version could support model comparison runs (the same player input processed by different models) — that's a separate feature, not MVP-0.
 
-## The case-study posture
-
-The roadmap says: "default to a non-MiniMax model initially so the case-study claim is genuinely about the swap."
-
-This is a deliberate choice. The project is part of a MiniMax community showcase, but the case-study framing requires that the *category of behavior* (LLM interpretation of policy) is what's being studied, not the *specific behavior of MiniMax M3*. Shipping with MiniMax M3 as the default would conflate the artifact with one instance of model behavior.
-
-The shipped default is `openai/gpt-4o` (or any non-MiniMax model the user prefers). To run the MiniMax case study specifically, the user sets `OPENROUTER_MODEL=minimax/MiniMax-M3` in `.env` and runs the simulation. The comparison between runs under different models is what makes the case study observable.
-
-This posture also makes the project useful *outside* the MiniMax showcase. Anyone can run it under their preferred model and get a working simulation. The MiniMax-specific framing is a documentation choice, not a code choice.
 
 ## Run log integration
 
@@ -103,7 +91,7 @@ Per Principle 1.2 (model behavior is observable, versioned, and citable), every 
 # Run metadata (always present at top of run log)
 run_id: "YYYY-MM-DD-HH-MM-SS-{random}"
 started_at: "ISO-8601 timestamp"
-model: "openai/gpt-4o"
+model: "minimax/minimax-m3"
 model_version: "snapshot identifier if available, else 'unspecified'"
 wiki_version: "git commit hash of wiki/ at run time"
 wiki_index_version: "git commit hash of wiki/index.md at run time"
@@ -188,9 +176,9 @@ The OpenRouter configuration is shippable when:
 
 When the configuration is implemented (Phase 1 build), additional ship criteria apply:
 
-- A run with `OPENROUTER_MODEL=openai/gpt-4o` completes successfully.
-- The same run with `OPENROUTER_MODEL=anthropic/claude-3.5-sonnet` completes successfully.
-- The same run with `OPENROUTER_MODEL=minimax/MiniMax-M3` completes successfully.
+- A run with `OPENROUTER_MODEL=minimax/minimax-m3` completes successfully.
+- The same run with `OPENROUTER_MODEL=qwen/qwen3.6-flash` completes successfully.
+- The same run with `OPENROUTER_MODEL=deepseek/deepseek-v4-flash` completes successfully.
 - Run logs from all three configurations have the correct model field.
 - The orchestrator can swap models by changing `.env` and restarting — no code changes required.
 
