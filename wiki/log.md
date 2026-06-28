@@ -43,3 +43,16 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Next:** Run audit, file result as prototype, commit and push.
 
 ---
+
+## 2026-06-28 — Phase 1c: Wiki retrieval + OpenRouter wiring
+
+- **Action:** Brought in `wiki-query.js` and `wiki-source-refs.js` from parent project (with two minor Polycrisis-specific adaptations). Created `.env.example`. Ran wiki query probe.
+- **Adopted:**
+  - `scripts/wiki-query.js` — retrieval pattern inherited as-is; OpenRouter client title changed to "Polycrisis Wiki Query"; answer-prompt system message updated to name the project's relationship to the Metaviews corpus.
+  - `scripts/wiki-source-refs.js` — copied from parent, used to add source-path sections to wiki pages. Available for Phase 2 build.
+  - `.env.example` — committed per `docs/11-openrouter-configuration.md`.
+- **Probe:** `node scripts/wiki-query.js --dry-run "How does algorithmic authority erode?"` — returned 6 relevant pages led by `concepts/algorithmic-authority.md` (score 9). Confirms retrieval works against the populated wiki.
+- **Filed:** `wiki/prototypes/2026-06-28-wiki-query-probe.md` documents the probe, output, and interpretation per Principle 4.5.
+- **Conclusion:** Phase 1 complete. The wiki is ready to ground simulation runs. Phase 2 build (grammar prompt assembly, test cases, model probes) can begin.
+
+---

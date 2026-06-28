@@ -47,6 +47,7 @@ The Polycrisis wiki is grounded in the Metaviews archive (`../metaviews-website/
 
 - [2026-06-28 — Wiki audit baseline](prototypes/2026-06-28-wiki-audit-baseline.md) — Probe of the empty wiki with the inherited audit script (extended for our entry types). Clean baseline established.
 - [2026-06-28 — Phase 1b audit](prototypes/2026-06-28-phase-1b-audit.md) — Audit after populating wiki with 22 corpus + 2 mechanics entries: 0 schema issues, 0 missing pages, 0 orphaned pages.
+- [2026-06-28 — Wiki query probe](prototypes/2026-06-28-wiki-query-probe.md) — Retrieval works against populated wiki. Top 6 pages selected for representative queries. Confirms the wiki is ready to ground simulation runs.
 
 ---
 
