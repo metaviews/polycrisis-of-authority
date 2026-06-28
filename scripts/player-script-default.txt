@@ -1,0 +1,37 @@
+We announce a 60-day review of all frontier model releases and require training-data transparency as a precondition for any deployment that exceeds current evaluation framework thresholds. We will engage civil society organizations and allied regulators in drafting the framework.
+
+---
+
+We commit to convening an emergency summit with allied regulators (UK, EU) to coordinate on cross-border AI policy. The summit will produce a joint framework for evaluating frontier capability releases before they enter the global market.
+
+---
+
+We acknowledge the public concern about content moderation and announce a comprehensive review of training-data composition and evaluation methodology. We will require affected community participation in designing the review.
+
+---
+
+We will work with allied states to negotiate compute-reporting requirements and pursue multilateral coordination on AI infrastructure investment. We will also engage with the open-source community to ensure that compute access does not become a barrier to public-interest AI work.
+
+---
+
+We acknowledge the agentic capability threshold and announce a 90-day pause on agentic deployment pending an evaluation framework. We will work with civil society and academic safety researchers to define the framework.
+
+---
+
+We commit to media diversity requirements and public-interest media support. We will engage with civil society to develop the policy framework and ensure transparency in media ownership.
+
+---
+
+We acknowledge the public legitimacy concerns and commit to sustained engagement through transparency reforms and accountability mechanisms. We will not pursue quick-response measures; we will build the institutional structures that respond to the underlying concerns.
+
+---
+
+We will work with allied regulators and civil society to develop a coordinated response to the frontier capability release. We will require the labs to engage with the framework we are developing, and we will be transparent about our engagement.
+
+---
+
+We will continue the structural approach: training-data transparency, evaluation reform, sustained engagement. The regime's authority depends on its ability to make consequential decisions about AI capability, and that authority must be earned through legitimate process.
+
+---
+
+We will not respond to short-term pressure at the cost of long-term institutional credibility. The structural approach is working: state-sensitivity, sustained engagement, corpus-grounded reasoning. We will continue.

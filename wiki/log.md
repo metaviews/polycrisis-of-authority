@@ -119,3 +119,20 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Next:** Cycle 2d — wire real grammar into the run loop (async), accept real player input, run a full end-to-end session, generate the artifact.
 
 ---
+
+## 2026-06-28 — Phase 2d: End-to-end session + artifact generation
+
+- **Action:** Built the async run loop, the artifact generator, and a player script. Ran a full real-LLM session and produced both a run log and an artifact.
+- **New files:**
+  - `src/sim/run-async.js` — async simulation loop using the real grammar
+  - `src/sim/artifact-generator.js` — generates 8-section artifact per `docs/09-artifact-template.md`
+  - `src/sim/index-async.js` — CLI entry point with `--script` flag for scripted player input
+  - `scripts/player-script-default.txt` — 9-move player script that engages structurally with each crisis
+- **Run:** 9 turns, all 8 distinct crises faced (crisis 1 appeared twice because all 8 were exhausted), no-collapse outcome. Run log 400 lines, artifact 270 lines.
+- **Artifact contents:** All 8 sections present and substantive. State trajectory table, interpretive chain (turns 1, 5, 9 traced), 19 unique wiki entries cited in grounding references.
+- **Real finding:** The model's glosses consistently identify structural vs quick-response moves. When the player wrote a 60-day review + training-data transparency precondition (turn 1), the model heard it as upstream-embedding engagement and produced +6 legitimacy, +10 elite_alignment, -3 capability_frontier. When moves were less specific, glosses flagged partial engagement. The literacy device works.
+- **Filed:** `wiki/prototypes/2026-06-28-phase-2d-end-to-end.md` documents the run per Principle 4.5.
+- **Run artifacts:** `runs/20260628223813-8jtf0r.md` (run log) and `runs/20260628223813-8jtf0r-artifact.md` (artifact) — gitignored but reproducible from the script.
+- **Next:** Cycle 2e — polish, README updates, final audit, Phase 2 ship criteria verification.
+
+---
