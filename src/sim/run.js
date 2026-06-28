@@ -120,7 +120,7 @@ function generatePlayerMove(turnNum, crisis, state) {
   return move;
 }
 
-function runSimulation({ maxTurns = 14, model = 'minimax/minimax-m3' } = {}) {
+function runSimulation({ maxTurns = 14, model = 'minimax/minimax-m3', llmMode = 'mock', realPlayerMove = null } = {}) {
   const runId = generateRunId();
   const startedAt = new Date().toISOString();
 
@@ -132,6 +132,14 @@ function runSimulation({ maxTurns = 14, model = 'minimax/minimax-m3' } = {}) {
   let outcome = 'no-collapse';
   let collapse = null;
 
+  // LLM module selection: mock for 2b skeleton, real grammar for 2c+
+  let llmModule;
+  if (llmMode === 'real') {
+    llmModule = require('./grammar');
+  } else {
+    llmModule = null; // use mockLLM
+  }
+
   while (turn < maxTurns) {
     turn += 1;
 
@@ -139,11 +147,18 @@ function runSimulation({ maxTurns = 14, model = 'minimax/minimax-m3' } = {}) {
     const crisis = selectCrisis({ state, turn, usedIds: usedCrisisIds });
     usedCrisisIds.push(crisis.id);
 
-    // 2. Generate player move (in 2b, simulated; in 2c, read from stdin)
-    const playerMove = generatePlayerMove(turn, crisis, state);
+    // 2. Generate player move (in 2b, simulated; in 2c+, real input from caller)
+    const playerMove = realPlayerMove || generatePlayerMove(turn, crisis, state);
 
-    // 3. Call mock LLM
-    const grammarOutput = mockLLM(crisis, playerMove, state);
+    // 3. Call LLM (mock or real)
+    let grammarOutput;
+    if (llmMode === 'real') {
+      // Real LLM call is async — for now, only synchronous mock runs from the CLI.
+      // The real-grammar entry point is the test-cases.js harness for 2c.
+      throw new Error('Real-grammar mode requires async runSimulation — use --async flag in 2d');
+    } else {
+      grammarOutput = mockLLM(crisis, playerMove, state);
+    }
 
     // 4. Apply delta
     const stateAfter = applyDelta(state, grammarOutput.state_delta);

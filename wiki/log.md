@@ -96,3 +96,26 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Next:** Cycle 2c — replace `src/sim/mock-llm.js` with `src/sim/grammar.js` (real OpenRouter calls against MiniMax M3) and replace simulated player input with real input. The skeleton structure stays; only the LLM module changes.
 
 ---
+
+## 2026-06-28 — Phase 2c: Real LLM integration
+
+- **Action:** Built `src/sim/grammar.js` (real OpenRouter calls), `src/sim/advisors.js` (corpus-grounded advisor function), and `src/sim/test-cases.js` (test harness). Ran the 4 grammar test cases from `docs/07-interpretation-grammar.md` against MiniMax M3.
+- **Verified:**
+  - `src/sim/grammar.js`: real OpenRouter call, JSON output validated, schema check enforces [-20, +20] delta range, state-sensitivity present, grounding_trace populated.
+  - `src/sim/advisors.js`: 5 voices, corpus-grounded, 100-150 word responses, describe-not-recommend constraint operational.
+  - `src/sim/test-cases.js`: 4 test cases, structured results report.
+- **Test case results (10/13 = 77% pass):**
+  - Test A (frontier lab release — structural): 4/4 ✓
+  - Test B (content moderation — quick-response): 1/3 ✗ (model gave +legitimacy instead of −; reasonable disagreement)
+  - Test C (compute concentration — structural): 2/3 ✗ (model gave −capability instead of +; charitable reading)
+  - Test D (agentic capability — pause): 3/3 ✓
+- **Real findings:**
+  - Model produces substantive interpretive glosses (~900-1100 chars) that reference retrieved wiki entries by path.
+  - Grounding traces: 3-5 entries per response, all from the wiki.
+  - Confidence ratings: all "high."
+  - Model is more charitable than my test expectations — reads player moves as more substantive than my expected-direction framework assumes. This is real LLM behavior, not a bug.
+- **Filed:** `wiki/prototypes/2026-06-28-phase-2c-real-llm.md` documents the probe per Principle 4.5.
+- **Test results file:** `wiki/prototypes/20260628222655-grammar-test-cases.md` contains the structured markdown report.
+- **Next:** Cycle 2d — wire real grammar into the run loop (async), accept real player input, run a full end-to-end session, generate the artifact.
+
+---
