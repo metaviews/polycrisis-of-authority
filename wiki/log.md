@@ -151,3 +151,20 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Status:** Phase 2 complete. Phase 3 starting.
 
 ---
+
+## 2026-06-28 — Phase 3a: Interactive CLI experience
+
+- **Action:** Built the interactive CLI: turn-based, terminal-native, real-time. State visible at every turn, crisis presented with clear typography, player chooses literacy mode (write own policy) or easy mode (consult advisor), comedic interlude during LLM wait, system interpretation revealed with gloss/narrative/state-delta/sources/confidence, state updates visibly, artifact generated at end.
+- **New files:**
+  - `src/sim/cli-format.js` — terminal formatting helpers
+  - `src/sim/state-display.js` — state vector display formatting
+  - `src/sim/interlude.js` — corpus pulls for the LLM wait state
+  - `src/sim/interactive.js` — the interactive CLI itself
+- **Real run:** 13-turn scripted interactive session triggered legitimacy collapse. Run log 538 lines, artifact 366 lines.
+- **Verified:** State visibility, crisis presentation, choice between literacy/easy mode, interlude during LLM wait, system interpretation, state update, collapse detection, artifact generation. All working end-to-end.
+- **Bug caught and fixed:** Artifact generator crashed on `player-quit` outcome because `lastTurn.collapse` was null. Added player-quit case to collapse-reveal section.
+- **Filed:** `wiki/prototypes/2026-06-28-phase-3a-interactive.md` documents the run per Principle 4.5.
+- **Run artifacts:** `runs/20260628231154-dzl75j.md` and `runs/20260628231154-dzl75j-artifact.md` — gitignored but reproducible.
+- **Next:** Cycle 3b — experience refinement based on real player trials; tighten display, curate interludes, refine advisor flow.
+
+---

@@ -236,6 +236,15 @@ function formatCollapseReveal(runResult) {
   lines.push('## Collapse reveal');
   lines.push('');
 
+  // Player quit mid-run
+  if (runResult.outcome === 'player-quit') {
+    lines.push('You exited the simulation before completion. The conditions for any of the three collapse modes (legitimacy, technical, narrative capture) had not been met when you stopped.');
+    lines.push('');
+    lines.push('A player-quit is a kind of meta-collapse: the regime did not fall; the player chose to disengage. The hidden state at the moment of exit may have been drifting toward any of several trajectories, but the simulation never resolved.');
+    lines.push('');
+    return lines.join('\n');
+  }
+
   if (runResult.outcome === 'no-collapse') {
     lines.push('No collapse fired during this run. The simulation completed without the threshold conditions for any of the three collapse modes (legitimacy, technical, narrative capture) being met.');
     lines.push('');
@@ -249,8 +258,12 @@ function formatCollapseReveal(runResult) {
   lines.push(`Collapse fired as **${runResult.outcome.replace(/-/g, ' ')}** on turn ${runResult.turnsCompleted}.`);
   lines.push('');
   lines.push('**Conditions met:**');
-  for (const [k, v] of Object.entries(lastTurn.collapse.conditions)) {
-    lines.push(`- ${AXIS_LABELS[k]}: ${v}`);
+  if (lastTurn.collapse && lastTurn.collapse.conditions) {
+    for (const [k, v] of Object.entries(lastTurn.collapse.conditions)) {
+      lines.push(`- ${AXIS_LABELS[k]}: ${v}`);
+    }
+  } else {
+    lines.push('- (no specific condition recorded)');
   }
   lines.push('');
   lines.push('**Timeline of hidden shifts:**');
