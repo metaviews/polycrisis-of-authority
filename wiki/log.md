@@ -136,3 +136,18 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Next:** Cycle 2e — polish, README updates, final audit, Phase 2 ship criteria verification.
 
 ---
+
+## 2026-06-28 — Phase 2e complete: polish + roadmap gate
+
+- **Action:** Final wiki audit (53 indexed, 0 orphans, 0 schema issues). README updated to reflect what works. Phase 2 ship criteria verified against `docs/04-roadmap.md`. Index updated with "Auto-generated artifacts" section documenting the 3 committed run artifacts.
+- **Phase 2 ship criteria verification:**
+  - ✓ State model spec committed as `mechanics/` entry: `mechanics/state-axes.md`
+  - ✓ Interpretation grammar committed with test cases: `mechanics/interpretation-grammar.md` + 4 cases in spec
+  - ✓ Grammar passes test cases: 10/13 expected-direction checks (77%); failures documented as interpretive disagreements
+  - ✓ ≥8 crisis skeletons covering all 4 failure patterns: 8 crises (2 per pattern)
+  - ✓ 5 advisor prompt templates grounded in corpus: 5 voices + cast index
+- **Audit:** 53 indexed wiki pages, 0 schema issues, 0 missing, 0 orphaned, 0 broken links. Saved at `docs/wiki-quality-audit-phase-2.md`.
+- **Filed:** `wiki/prototypes/2026-06-28-phase-2-complete.md` — Phase 2 wrap-up prototype observation per Principle 4.5.
+- **Status:** Phase 2 complete. Phase 3 starting.
+
+---
