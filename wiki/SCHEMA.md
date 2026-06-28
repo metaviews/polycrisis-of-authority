@@ -1,6 +1,19 @@
-# Wiki Schema
+# Polycrisis Wiki Schema
 
-_Defines the structure of wiki entries. Read by the inherited `wiki-audit.js` script (extended for our entry types). Per the wiki structure plan (`docs/05-wiki-structure.md`)._
+_Defines the structure of wiki entries. Read by `scripts/wiki-audit.js`. Per the wiki structure plan (`docs/05-wiki-structure.md`)._
+
+The Polycrisis wiki inherits the Metaviews project's wiki conventions for corpus entries (`concepts/`, `entities/`, `themes/`, `signals/`) and adds two new entry types (`mechanics/`, `prototypes/`) for game-claim documentation and prototype outputs respectively.
+
+## Domain
+
+This wiki is the knowledge layer for the Polycrisis simulation game. It compiles curated corpus material from the parent Metaviews archive and Polycrisis-specific game-claim entries into durable, source-backed pages used for editorial memory, retrieval-grounded simulation, and case-study observability.
+
+## Purpose
+
+- Preserve durable AI-policy memory across runs.
+- Make the interpretation grammar's wiki retrieval grounded in source material, not the model's prior.
+- Keep the case-study claim (model behavior is observable) auditable through source paths and citations.
+- Support prototype outputs (Principle 4.5) with a permanent home.
 
 ## Page classes
 
@@ -22,7 +35,7 @@ _Defines the structure of wiki entries. Read by the inherited `wiki-audit.js` sc
 
 ## Required frontmatter
 
-All wiki pages must include YAML frontmatter at the top. The required fields depend on page type.
+All wiki pages must include YAML frontmatter at the top. Required fields depend on page type.
 
 ### Corpus entries (concept, entity, theme)
 
@@ -59,28 +72,113 @@ All wiki pages must include YAML frontmatter at the top. The required fields dep
 
 ## Required page sections
 
-Each page type has required `## Section` headings (case-insensitive).
+These sections are required for concept, entity, and theme pages (when the page has enough source material to support them):
 
-### Concept, entity, theme pages
+- Key posts
+- Related archive posts
+- Connections
 
-- `## In the <type> archive` — narrative summary grounded in sources
-- `## Key posts` — bulleted list of source posts with dates
-- `## Connections` — bulleted list of related concepts/entities/themes/signals
+(The parent project's wiki uses either "Related archive posts" or "Connections" — both are accepted as the linking-back section. The audit script's Polycrisis extension allows either.)
 
-### Signal pages
+Mechanic pages use their own structure — see "Mechanic pages" below for per-type requirements. The audit script's shared required-sections list does not apply to mechanics; mechanics are validated manually by the orchestrator.
 
-- `## Synthesis` — synthesis of monitored items
-- `## Monitored items` — bulleted list of items with title, link, source, date, score, excerpt
+Signal pages use their own edition format and must include a source path back to the parent project.
 
-### Mechanic pages
+## Conventions
 
-- `## <Mechanic name>` — primary content (the game-claim itself)
-- `## Sources` — corpus entries the mechanic references (per `grounded_in`)
-- `## Version history` — record of version bumps with reasons
+- File names are lowercase kebab-case markdown files.
+- `wiki/index.md` is the primary navigation map and must list every wiki page.
+- `wiki/log.md` is append-only. Record major wiki maintenance actions there.
+- Prefer deterministic maintenance scripts before LLM rewrites.
+- The signal-filing check in `wiki-audit.js` reads from `../metaviews-website/src/signal/` (parent-owned). Local unfiled signals are informational, not a bug.
 
-### Prototype pages
+## Concept pages
 
-- `## Probe` or `## Observation` — what was tested/observed
-- `## Prompt` — the prompt sent (or path to prompt file)
-- `## Output` — the model output (or path to output file)
-- `## Interpretation` — orchestrator's reading of what this revealed
+Concept pages explain recurring analytic categories in the Polycrisis corpus. Inherited structure from parent project:
+
+- `# Concept Name`
+- `## In the Metaviews archive`
+- `## Key posts`
+- `## Related archive posts`
+
+## Entity pages
+
+Entity pages track people, institutions, companies, states, platforms, and infrastructure actors:
+
+- `# Entity Name`
+- `## In the Metaviews archive`
+- `## Key posts`
+- `## Related archive posts`
+
+## Theme pages
+
+Theme pages synthesize patterns that cut across many concepts and entities:
+
+- `# Theme Name`
+- `## In the Metaviews archive`
+- `## Key posts`
+- `## Connections`
+
+Themes use `## Connections` instead of `## Related archive posts` (parent convention).
+
+## Signal pages
+
+Signal pages file published Pressure Systems editions into the wiki:
+
+- title heading
+- source path back to parent project
+- date
+- synthesis/summary
+- monitored/source items
+
+## Mechanic pages
+
+Mechanic pages document game-claims. They are distinct from corpus entries per Principle 2.3:
+
+- `# Mechanic name`
+- `## <Mechanic name>` — primary content
+- `## Sources` — corpus entries the mechanic references
+- `## Version history` — record of version bumps
+
+## Prototype pages
+
+Prototype pages record operational observations per Principle 4.5:
+
+- `# Prototype title`
+- `## Observation` — what was tested/observed
+- `## Probe` — the prompt sent or path to prompt file
+- `## Output` — the model output or path to output file
+- `## Interpretation` — orchestrator's reading
+
+## Source policy
+
+- Use parent project source paths for auditability: `../metaviews-website/src/intelligence/archive/...`
+- Use parent project wiki paths for corpus citations: `concepts/[name].md`, `entities/[name].md`, etc.
+- Do not invent citations or backfill sources by guesswork.
+- Prefer source-path sections over decorative prose citations.
+
+## Audit policy
+
+Run `node scripts/wiki-audit.js --output docs/wiki-quality-audit.md` after:
+
+- full wiki rebuilds
+- signal filing
+- source-reference enrichment
+- manual wiki page edits
+- adding or changing schema conventions
+
+The audit surfaces missing indexed pages, orphaned pages, broken local links, unfiled Pressure Systems editions, weak source/reference coverage, short pages, and schema violations.
+
+## Quality thresholds
+
+- No missing indexed pages.
+- No orphaned wiki pages.
+- No short pages under 250 words (with exceptions for index/log/SCHEMA).
+- Pages should have explicit source/reference sections when possible.
+
+## Anti-patterns
+
+- Public query bars or public query layers before retrieval is reliable.
+- LLM rewrites that erase source paths.
+- Creating new wiki pages for passing mentions.
+- Treating Pressure Systems filing as synthesis. Filing makes editions retrievable; synthesis remains a separate step.

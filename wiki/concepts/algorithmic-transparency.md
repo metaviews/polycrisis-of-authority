@@ -1,0 +1,36 @@
+# Algorithmic Transparency
+
+Algorithmic transparency in the Metaviews corpus refers to the demand for open, auditable, and accountable AI systems as a foundational requirement for democratic oversight and public trust. It encompasses the tension between the "black box" nature of automated decision-making and the civic necessity for citizens to understand, challenge, and influence the algorithms that shape public policy, media, and social reality.
+
+## In the Metaviews archive
+
+Metaviews treats algorithmic transparency not merely as a technical specification but as a structural prerequisite for democratic legitimacy. Early entries in the archive, such as the 2016 series on algorithmic media, establish transparency as the counterpart to "algorithmic authority." Drawing on Frank Pasquale's *The Black Box Society*, the archive argues that when authority becomes algorithmic, the opacity of the code threatens the rule of law. A pivotal post from December 2016 explicitly links transparency to the rule of law, asserting that just as citizens must be able to access and comprehend the law, they must be able to access and understand the algorithms that govern their lives; otherwise, democratic self-governance becomes impossible.
+
+Over time, the archive's analysis evolves from a focus on media regulation to a broader critique of how algorithms automate authority and erode accountability. Recent posts highlight a shift where transparency is bypassed entirely by the automation of governance. The archive argues that AI is increasingly used to "route around" political conflict by embedding decisions upstream inside models and infrastructure. This creates a scenario where the space for disagreement closes before outcomes appear, rendering traditional transparency mechanisms insufficient. The demand for transparency is thus framed as a struggle against the "soft coup" of systems that proceed without consent, where authority is automated rather than contested.
+
+The corpus also examines transparency through the lens of surveillance, profiling, and data extraction. Metaviews analyzes how algorithmic systems often operate opaquely to profile vulnerable populations, such as the "algorithmic gaze" that identifies neurodivergence through data infrastructure without human oversight. Simultaneously, the archive notes that transparency is frequently performative rather than substantive. Entries critique instances where data releases or regulatory frameworks serve as spectacles or tools of control rather than genuine accountability, emphasizing that true transparency must empower the public to understand and resist the extraction of intelligence from communities.
+
+Finally, Metaviews explores counter-movements and the geopolitical dimensions of algorithmic transparency. The archive documents state efforts to reassert control over algorithmic power, such as China's regulatory crackdowns, while also highlighting open-source and commons-based approaches as forms of resistance. The tension is drawn between corporate and state monopolies that hoard algorithmic power and emerging efforts to reprogram sovereignty through open code and decentralized systems. The archive concludes that preserving transparency requires rebuilding the "resurgent commons" and ensuring that the path to power remains open, rather than allowing algorithmic systems to insulate decision-making from public scrutiny.
+
+## Key posts
+
+- **[Algorithmic Transparency: A Call for Further Research]** (2016-12-27) — Argues that algorithmic transparency is a necessary prerequisite for democracy, drawing a direct parallel between the accessibility of law and the need for citizens to understand algorithmic decision-making.
+- **[Algorithmic Authority: Netflix, Uber, and Bitcoin]** (2016-12-20) — Explores how authority is increasingly expressed algorithmically, referencing Pasquale's *Black Box Society* and the trust users place in opaque aggregators.
+- **[Why Democratic Publics Matter in the Age of Algorithms]** (2016-12-09) — Connects the role of media in forming democratic publics with the difficulties algorithms pose for facilitating public discussion and participation.
+- **[The Automation of Intelligence and the Erosion of Accountability]** (2024-11-15) — Analyzes how the shift toward algorithmic authority in governance risks an existential crisis of trust and accountability within the intelligence community.
+- **[The Invisible Hand of Algorithmic Authority]** (2024-11-18) — Examines how platform algorithms amplify specific narratives and reshape the digital public square, demonstrating the real-world impact of opaque algorithmic authority.
+- **[Nobody Voted for This]** (2025-12-23) — Contends that AI is automating authority by embedding decisions upstream in models and infrastructure, effectively closing the space for public disagreement and routing around democratic consent.
+- **[The Algorithmic Gaze: How Autistic People Are Being Profiled by Algorithms]** (2025-04-25) — Critiques how data infrastructure profiles neurodivergence as risk without human oversight, highlighting the dangers of algorithmic surveillance and profiling.
+- **[China's Crackdown on Algorithmic Power]** (2024-12-02) — Details how state institutions are attempting to reassert control over algorithmic authorities through sweeping regulatory frameworks, illustrating the geopolitical struggle over algorithmic governance.
+- **[The Performative Spectacle of the Epstein Files]** (2025-02-28) — Critiques the partial release of documents as a performance of transparency designed to distract rather than illuminate, distinguishing between spectacle and genuine accountability.
+- **[The Intelligence Layer of Food Power]** (2025-12-16) — Argues that the current food system is in crisis because it extracts data while excluding the public, neglecting the collective literacy and understanding necessary for transparency.
+- **[Algorithms and Public Policy]** (2016-12-21) — Discusses the struggle of traditional regulators to keep pace with media technology and the need to preserve the public interest amidst private algorithmic control.
+- **[The Soft Coup of Vibe Coding]** (2025-06-18) — Reflects on how open-source and accessible coding practices can democratize power, contrasting with guarded systems that exclude public understanding.
+- **[Anti-Elitism is the Rational Response to a Broken System]** (2025-03-15) — Links the weaponization of expertise and the illegibility of complex systems to a crisis of legitimacy that authoritarianism exploits.
+- **[Trust in the age of transparency]** (2013-03-01) — Frames trust as a mysterious but essential social asset, setting the stage for discussions on how transparency impacts trust in automated societies.
+
+## Connections
+
+**Related concepts:** Algorithmic Authority, Democratic Oversight, Black Box Society, Public Trust, Surveillance Capitalism, Open Source, Epistemic Collapse, Rule of Law, Performative Transparency, Upstream Decision-Making
+**Related entities:** Frank Pasquale, Timothy Graham, Mark Andrejevic, Cyberspace Administration of China, X/Twitter, FBI, Intelligence Community, Supreme Court of Canada
+**Related themes:** Automation of Governance, Crisis of Authority, Algorithmic Profiling, Regulatory Capture, Polycrisis, Resurgent Commons, Food Sovereignty, AI Arms Race

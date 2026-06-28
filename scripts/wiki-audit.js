@@ -129,8 +129,22 @@ function validatePageAgainstSchema(relativePath, content, schema) {
     result.unexpectedDirectory = directory;
   }
 
-  if (['concept', 'entity', 'theme', 'mechanic'].includes(type)) {
-    result.missingRequiredSections = schema.requiredSections.filter(section => !hasHeading(content, section));
+  if (['concept', 'entity', 'theme'].includes(type)) {
+    // Polycrisis extension: if the section is "Related archive posts" or
+    // "Connections", having either satisfies the requirement (the parent
+    // project's wiki uses either as the linking-back section).
+    // Mechanic pages are excluded — they have their own structure validated
+    // by the orchestrator, not by the audit script's shared required-sections list.
+    const altPairs = new Map([
+      ['Related archive posts', 'Connections'],
+      ['Connections', 'Related archive posts'],
+    ]);
+    result.missingRequiredSections = schema.requiredSections.filter(section => {
+      if (hasHeading(content, section)) return false;
+      const alt = altPairs.get(section);
+      if (alt && hasHeading(content, alt)) return false;
+      return true;
+    });
   }
 
   return result;
