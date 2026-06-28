@@ -79,3 +79,20 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Next:** Cycle 2b — simulation engine skeleton that can run a text-only session with a mock LLM.
 
 ---
+
+## 2026-06-28 — Phase 2b: Simulation engine skeleton
+
+- **Action:** Built the Node.js simulation engine skeleton per the Phase 2 plan. 5 source files in `src/sim/`: state, crisis-generator, mock-llm, run, index. The engine runs end-to-end with a hand-authored mock LLM.
+- **Verified:**
+  - State vector (6 axes, named bands, delta application) — unit tested
+  - Crisis generation rule (8-crisis deck, selection by state) — all 8 crises reachable, no repeats within a run
+  - Collapse detection (3 modes with quantified conditions) — all 3 modes fire correctly
+  - Run loop orchestration (turn-by-turn, collapse short-circuit) — works
+  - Run log generation (YAML frontmatter + per-turn sections) — produces 531-line logs
+  - CLI entry point (parameter handling, output directory) — works
+- **Probe results:** 14-turn run produced 531-line run log; 8-turn run also works; all 3 collapse modes verified via direct unit test.
+- **Real finding:** The mock LLM is too forgiving for "bad player" archetypes — a player who only does quick-response moves rarely produces collapse. This is acceptable for 2b (skeleton is structural, not behavioral) and will be replaced in 2c with real LLM calls.
+- **Filed:** `wiki/prototypes/2026-06-28-phase-2b-skeleton.md` documents the probe per Principle 4.5.
+- **Next:** Cycle 2c — replace `src/sim/mock-llm.js` with `src/sim/grammar.js` (real OpenRouter calls against MiniMax M3) and replace simulated player input with real input. The skeleton structure stays; only the LLM module changes.
+
+---

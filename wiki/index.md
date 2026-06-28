@@ -76,6 +76,7 @@ The Polycrisis wiki is grounded in the Metaviews archive (`../metaviews-website/
 - [2026-06-28 — Wiki query probe](prototypes/2026-06-28-wiki-query-probe.md) — Retrieval works against populated wiki. Top 6 pages selected for representative queries. Confirms the wiki is ready to ground simulation runs.
 - [2026-06-28 — Real LLM connectivity](prototypes/2026-06-28-real-llm-connectivity.md) — First real OpenRouter call against minimax/minimax-m3. Connectivity confirmed; trivial prompt returns expected response. The bridge from design to build is open.
 - [2026-06-28 — Phase 2a mechanics](prototypes/2026-06-28-phase-2a-mechanics.md) — 20 mechanics entries landed (6 core, 8 crises, 6 advisors). Wiki retrieval correctly surfaces them. Audit: 0 schema issues, 0 missing, 0 orphaned.
+- [2026-06-28 — Phase 2b skeleton](prototypes/2026-06-28-phase-2b-skeleton.md) — Simulation engine runs end-to-end with mock LLM. State, crisis selection, collapse detection, run log all verified. 531-line run log produced.
 
 ---
 
