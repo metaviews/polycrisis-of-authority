@@ -29,7 +29,7 @@ const { consult, ADVISOR_VOICES } = require('./advisors');
 const { generateArtifact } = require('./artifact-generator');
 const { renderArtifactHtml } = require('./artifact-render');
 const { selectInterlude, formatInterlude } = require('./interlude');
-const { formatStateBlock, formatStateCompact, formatDeltaBlock, formatVisibleSignalsDisplay } = require('./state-display');
+const { formatStateBlock, formatStateCompact, formatDeltaBlock, formatVisibleSignalsDisplay, computeVisibleSignals } = require('./state-display');
 const { section, subsection, indent, wrap, numberedChoice, pause } = require('./cli-format');
 
 const ROOT_DIR = path.join(__dirname, '..', '..');
@@ -99,14 +99,21 @@ function createReader() {
   };
 }
 
-function displayState(state, label = 'CURRENT STATE', { hiddenHistory = [], turn = 1, stateBefore = null } = {}) {
+function displayState(state, label = 'CURRENT STATE', { hiddenHistory = [], turn = 1, stateBefore = null, signals = null } = {}) {
   console.log(section(label));
+  const sig = signals || computeVisibleSignals({
+    hiddenState: state,
+    hiddenHistory,
+    turn,
+    stateBefore: stateBefore || state,
+  });
   console.log(formatVisibleSignalsDisplay({
     hiddenState: state,
     hiddenHistory,
     turn,
     stateBefore: stateBefore || state,
   }));
+  return sig;
 }
 
 function displayPreviousTurnSummary(turn) {
@@ -223,8 +230,10 @@ async function runInteractive({ maxTurns = 14, model = process.env.OPENROUTER_MO
       // Visible signal display: shows the three named signals per axis
       // (deliberately unreliable per Principle 3.2). The hidden value
       // is not shown during play — that's the literacy device.
-      // History of hidden states feeds the lag-based signals.
-      displayState(state, `STATE BEFORE TURN ${turn}`, {
+      // History of hidden states feeds the lag-based signals. The
+      // returned signals object is stored on the turn record so the
+      // run log can carry it forward to the run-query tool (Cycle 4c).
+      const visibleSignals = displayState(state, `STATE BEFORE TURN ${turn}`, {
         hiddenHistory: turns.map((t) => t.stateBefore),
         turn,
         stateBefore: state,
@@ -331,6 +340,7 @@ async function runInteractive({ maxTurns = 14, model = process.env.OPENROUTER_MO
         stateAfter,
         collapse,
         advisorUsed,
+        visibleSignals,
       });
 
       state = stateAfter;
@@ -455,6 +465,26 @@ function buildRunLog(result) {
     lines.push('');
     for (const [axis, info] of Object.entries(withBands(turn.stateAfter))) {
       lines.push(`- ${axis}: ${info.value} (${info.band})`);
+    }
+    // Optional: visible-signal block (per Cycle 4c). When the run captured
+    // the visible-signal layer (which is the default for the interactive
+    // CLI as of Cycle 3c), record what the player saw. This is the
+    // observable surface of the literacy device; the artifact's collapse
+    // reveal surfaces the visible-vs-hidden gap; the run log carries the
+    // raw signal data so run-query.js can aggregate it.
+    if (turn.visibleSignals) {
+      lines.push('');
+      lines.push('### Visible signals');
+      lines.push('');
+      for (const [axis, ax] of Object.entries(turn.visibleSignals)) {
+        const signalSummary = (ax.signals || [])
+          .map((s) => {
+            if (s.value === null) return `${s.name} [${s.band}]`;
+            return `${s.name} [${s.value}/${(s.band || '?').slice(0, 4)}]`;
+          })
+          .join('  ·  ');
+        lines.push(`- ${axis}: ${signalSummary}  (discrepancy ${ax.discrepancy || 0} pts)`);
+      }
     }
     lines.push('');
   }

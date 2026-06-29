@@ -84,6 +84,18 @@ function formatDeltaBlock(delta) {
 }
 
 /**
+ * Compute the visible-signal layer for play. Returns the structured signal
+ * data (per axis: signals array + discrepancy) without rendering to a string.
+ * The structured data is what the run log captures (Cycle 4c); the rendered
+ * string is what the player sees in the terminal.
+ *
+ * The hidden value is NOT shown — that's the literacy device.
+ */
+function computeVisibleSignals({ hiddenState, hiddenHistory, turn, stateBefore }) {
+  return renderVisibleSignals({ hiddenState, hiddenHistory, turn, stateBefore });
+}
+
+/**
  * Format the visible-signal layer for play. The player sees the three
  * named signals per axis, with band/value, plus a discrepancy warning
  * when signals diverge from the hidden value by >= 12 points.
@@ -101,5 +113,6 @@ module.exports = {
   formatStateCompact,
   formatStateBlock,
   formatDeltaBlock,
+  computeVisibleSignals,
   formatVisibleSignalsDisplay,
 };

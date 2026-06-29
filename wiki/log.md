@@ -244,3 +244,17 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Filed:** `wiki/prototypes/2026-06-29-phase-4b-run-query.md` documents the probe per Principle 4.5.
 - **Phase 4 ship criterion advanced:** "Run logs are persisted for every session and are queryable" — ✓ (4b).
 - **Next:** Cycle 4c — pattern review (refines the `pattern` and `diff` commands against the orchestrator-role doc's review criteria).
+
+## 2026-06-29 — Phase 4c: pattern review workflow
+
+- **Action:** Built the pattern-review workflow layer on top of the 4b run-query tool. The orchestrator-role doc names two activities that need this layer (Activity 4 pattern review, Activity 2 grammar refinement); both produce committed markdown artifacts.
+- **Run log format v0.2.0:** the interactive CLI now writes the visible-signal layer into the run log per turn (`### Visible signals` block with three signals and discrepancy per axis). The run-query parser was extended to read the block; old-format run logs (4b and earlier) parse cleanly with `visibleSignals: null`.
+- **Two new commands in `scripts/run-query.js`:**
+  - `review-notes [--output file.md]` — emits a markdown skeleton for the orchestrator's review (Activity 4). Sections: aggregate summary, notable surprises, actions triggered, linked runs.
+  - `grammar-refine <beforeRunId> <afterRunId>` — emits a structured before/after comparison for attaching to a grammar commit's changelog (Activity 2). Sections: run-level comparison, final state per axis, per-turn delta, "why this refinement was made" stub.
+- **`pattern` command extended** with a "Visible-signal discrepancy hotspots" section listing the top 10 turn/axis combinations where the gap between the player's visible signals and the hidden state was largest (≥12 points). This is the orchestrator's primary signal for "the literacy device was working as designed here."
+- **Verified:**
+  - `/tmp/hermes-verify-4c.sh` — 9 checks pass (parser, hotspot aggregation, review-notes skeleton, grammar-refine structure, regression check on 4b commands, wiki audit)
+  - Prior cycle verifications (`hermes-verify-4a.sh`, `hermes-verify-4b.sh`) still pass — no regressions
+- **Filed:** `wiki/prototypes/2026-06-29-phase-4c-pattern-review.md` documents the probe per Principle 4.5.
+- **Next:** Cycle 4d — model-version log.

@@ -50,10 +50,11 @@ function parseArgs(argv) {
     since: null,
     until: null,
     minTurns: null,
+    flags: [],
   };
   for (let i = 2; i < argv.length; i += 1) {
     const a = argv[i];
-    if (a === 'list' || a === 'summary' || a === 'show' || a === 'pattern' || a === 'diff') {
+    if (a === 'list' || a === 'summary' || a === 'show' || a === 'pattern' || a === 'diff' || a === 'review-notes' || a === 'grammar-refine') {
       args.cmd = a;
     } else if (a === 'help' || a === '--help' || a === '-h') {
       args.help = true;
@@ -62,9 +63,13 @@ function parseArgs(argv) {
     else if (a === '--since') args.since = argv[++i];
     else if (a === '--until') args.until = argv[++i];
     else if (a === '--min-turns') args.minTurns = parseInt(argv[++i], 10);
-    else if (!a.startsWith('--')) {
+    else if (a === '--output' || a === '-o') {
+      args.flags.push(a, argv[++i]);
+    } else if (a.startsWith('--')) {
+      args.flags.push(a);
+    } else {
       if (args.cmd === 'show' && !args.file) args.file = a;
-      else if (args.cmd === 'diff') args.files.push(a);
+      else if (args.cmd === 'diff' || args.cmd === 'grammar-refine') args.files.push(a);
     }
   }
   return args;
@@ -83,7 +88,7 @@ function parseArgs(argv) {
  *   runId, startedAt, endedAt, model, outcome, turnsCompleted,
  *   turns: [{ turn, crisisTitle, failurePattern, playerMove, advisorUsed,
  *             interpretiveGloss, narrativeMove, stateDelta, groundingTrace,
- *             confidence, stateAfter }],
+ *             confidence, stateAfter, visibleSignals }],
  *   collapse: { type, conditions, triggerTurn } | null,
  *   raw,
  * }
@@ -157,6 +162,7 @@ function parseTurn(turnNum, body) {
     groundingTrace: [],
     confidence: null,
     stateAfter: {},
+    visibleSignals: null,
   };
 
   // Crisis title and pattern: **TITLE** (failure pattern: PATTERN)
@@ -221,6 +227,37 @@ function parseTurn(turnNum, body) {
       const sm = line.match(/^\s*-\s*([a-z_]+):\s*(\d+)\s*\(([a-z]+)\)/);
       if (sm) turn.stateAfter[sm[1]] = { value: parseInt(sm[2], 10), band: sm[3] };
     }
+  }
+
+  // Visible signals (Cycle 4c). Optional block; tolerates absence.
+  // Format: "- axis: signal-1 [val/band]  ·  signal-2 [val/band]  ·  ...  (discrepancy N pts)"
+  const sigMatch = body.match(/### Visible signals\s*\n\n([\s\S]*?)(?=\n### |\n## |$)/);
+  if (sigMatch) {
+    const signals = {};
+    for (const line of sigMatch[1].split('\n')) {
+      const lm = line.match(/^\s*-\s*([a-z_]+):\s*(.+?)\s*\(discrepancy\s+(\d+)\s*pts?\)\s*$/);
+      if (!lm) continue;
+      const axis = lm[1];
+      const signalsStr = lm[2];
+      const discrepancy = parseInt(lm[3], 10);
+      // Each signal is "name [val/band]" or "name [band]"
+      const axisSignals = [];
+      for (const part of signalsStr.split('·').map(s => s.trim()).filter(Boolean)) {
+        const sm = part.match(/^(.+?)\s*\[([^\]]+)\]\s*$/);
+        if (!sm) continue;
+        const name = sm[1].trim();
+        const valStr = sm[2].trim();
+        // valStr is "68/stra" or just "strained"
+        const vbm = valStr.match(/^(\d+)\/(\w+)$/);
+        if (vbm) {
+          axisSignals.push({ name, value: parseInt(vbm[1], 10), band: vbm[2] });
+        } else {
+          axisSignals.push({ name, value: null, band: valStr });
+        }
+      }
+      signals[axis] = { signals: axisSignals, discrepancy };
+    }
+    turn.visibleSignals = signals;
   }
 
   return turn;
@@ -516,7 +553,50 @@ function cmdPattern(args) {
     }
   }
 
-  // 6. Ship-criterion check (Phase 5)
+  // 6. Visible-signal discrepancy hotspots (Cycle 4c / literacy device)
+  // For each axis, find the turns where the discrepancy between visible
+  // signals and hidden value was largest. This is the orchestrator's
+  // primary signal for "the literacy device was working as designed here."
+  const SIG_AXES = ['legitimacy', 'fiscal_slack', 'elite_alignment', 'ecological_debt', 'narrative_coherence', 'capability_frontier'];
+  const signalRuns = runs.filter(r => r.turns.some(t => t.visibleSignals));
+  if (signalRuns.length > 0) {
+    const hotspots = [];
+    for (const r of signalRuns) {
+      for (const t of r.turns) {
+        if (!t.visibleSignals) continue;
+        for (const axis of SIG_AXES) {
+          const ax = t.visibleSignals[axis];
+          if (ax && ax.discrepancy >= 12) {
+            hotspots.push({
+              runId: r.runId,
+              turn: t.turn,
+              axis,
+              discrepancy: ax.discrepancy,
+            });
+          }
+        }
+      }
+    }
+    if (hotspots.length > 0) {
+      const top = hotspots.sort((a, b) => b.discrepancy - a.discrepancy).slice(0, 10);
+      console.log(`\n  Visible-signal discrepancy hotspots (top 10, threshold ≥12 pts):`);
+      for (const h of top) {
+        console.log(`    ${h.runId} turn ${h.turn}: ${h.axis} (discrepancy ${h.discrepancy} pts)`);
+      }
+      // Per-axis aggregate
+      const perAxis = {};
+      for (const h of hotspots) {
+        perAxis[h.axis] = (perAxis[h.axis] || 0) + 1;
+      }
+      console.log(`  Total hot-spot turns: ${hotspots.length} across ${signalRuns.length} signal-captured run(s)`);
+    } else {
+      console.log(`\n  Visible-signal discrepancy hotspots: none above threshold (literacy device quiet across these runs)`);
+    }
+  } else {
+    console.log(`\n  Visible-signal discrepancy hotspots: no signal-captured runs (older run logs)`);
+  }
+
+  // 7. Ship-criterion check (Phase 5)
   const collapses = runs.filter(r => r.outcome && r.outcome !== 'no-collapse' && r.outcome !== 'player-quit');
   if (collapses.length >= 3) {
     const collapseTypes = collapses.map(r => r.outcome);
@@ -568,6 +648,225 @@ function cmdDiff(args) {
 }
 
 // ---------------------------------------------------------------
+// review-notes — emit a markdown skeleton for the orchestrator's review
+// ---------------------------------------------------------------
+
+/**
+ * Build a markdown review-notes skeleton the orchestrator can fill in,
+ * save, and commit. The skeleton is structured around the
+ * orchestrator-role doc's pattern-review activity (Activity 4):
+ *   - aggregate pattern summary
+ *   - notable surprises
+ *   - actions triggered
+ *
+ * The orchestrator reads the skeleton, fills in the open questions,
+ * and commits the file to wiki/notes/ as the audit trail for the review.
+ */
+function buildReviewNotes(runs, options = {}) {
+  const date = options.date || new Date().toISOString().slice(0, 10);
+  const reviewWindow = options.window || 'last 30 days';
+  const totalRuns = runs.length;
+  const outcomeDist = {};
+  const collapseCount = runs.filter(r => r.outcome && r.outcome !== 'no-collapse' && r.outcome !== 'player-quit').length;
+  const noCollapseCount = runs.filter(r => r.outcome === 'no-collapse').length;
+  for (const r of runs) {
+    outcomeDist[r.outcome] = (outcomeDist[r.outcome] || 0) + 1;
+  }
+  const modelDist = {};
+  for (const r of runs) {
+    modelDist[r.model || 'unknown'] = (modelDist[r.model || 'unknown'] || 0) + 1;
+  }
+  const advisorCount = runs.reduce((sum, r) => sum + r.turns.filter(t => t.advisorUsed).length, 0);
+  const totalTurns = runs.reduce((sum, r) => sum + r.turnsCompleted, 0);
+
+  // Top 5 most-cited wiki entries
+  const traceDist = {};
+  for (const r of runs) {
+    for (const t of r.turns) {
+      for (const tr of t.groundingTrace) {
+        traceDist[tr] = (traceDist[tr] || 0) + 1;
+      }
+    }
+  }
+  const topTraces = Object.entries(traceDist).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  // Signal-discrepancy hotspots
+  const signalRuns = runs.filter(r => r.turns.some(t => t.visibleSignals));
+  let hotspots = [];
+  if (signalRuns.length > 0) {
+    for (const r of signalRuns) {
+      for (const t of r.turns) {
+        if (!t.visibleSignals) continue;
+        for (const [axis, ax] of Object.entries(t.visibleSignals)) {
+          if (ax.discrepancy >= 12) {
+            hotspots.push({ runId: r.runId, turn: t.turn, axis, discrepancy: ax.discrepancy });
+          }
+        }
+      }
+    }
+    hotspots.sort((a, b) => b.discrepancy - a.discrepancy);
+    hotspots = hotspots.slice(0, 5);
+  }
+
+  const lines = [];
+  lines.push(`# Pattern review — ${date}`);
+  lines.push('');
+  lines.push(`Review window: ${reviewWindow}. Runs reviewed: ${totalRuns}.`);
+  lines.push('');
+  lines.push('## Aggregate summary');
+  lines.push('');
+  lines.push(`- Total runs: ${totalRuns}`);
+  lines.push(`- Collapses: ${collapseCount} (${totalRuns > 0 ? ((collapseCount / totalRuns) * 100).toFixed(1) : 0}%)`);
+  lines.push(`- No-collapse: ${noCollapseCount}`);
+  if (totalTurns > 0) {
+    lines.push(`- Advisor consults: ${advisorCount} / ${totalTurns} turns (${((advisorCount / totalTurns) * 100).toFixed(1)}%)`);
+  }
+  lines.push('');
+  lines.push('Outcome distribution:');
+  for (const [outcome, count] of Object.entries(outcomeDist).sort((a, b) => b[1] - a[1])) {
+    lines.push(`- ${outcome}: ${count}`);
+  }
+  lines.push('');
+  lines.push('Models:');
+  for (const [model, count] of Object.entries(modelDist).sort((a, b) => b[1] - a[1])) {
+    lines.push(`- ${model}: ${count}`);
+  }
+  lines.push('');
+  if (topTraces.length > 0) {
+    lines.push('Top 5 most-cited wiki entries:');
+    for (const [trace, count] of topTraces) {
+      lines.push(`- ${trace}: ${count}`);
+    }
+    lines.push('');
+  }
+  if (hotspots.length > 0) {
+    lines.push('Visible-signal discrepancy hotspots (top 5, ≥12 pts):');
+    for (const h of hotspots) {
+      lines.push(`- ${h.runId} turn ${h.turn}: ${h.axis} (${h.discrepancy} pts)`);
+    }
+    lines.push('');
+  }
+  lines.push('## Notable surprises');
+  lines.push('');
+  lines.push('_(patterns that match or don\'t match the orchestrator\'s prior expectations)_');
+  lines.push('');
+  lines.push('- ');
+  lines.push('');
+  lines.push('## Actions triggered');
+  lines.push('');
+  lines.push('_(which activities this review feeds into: grammar refinement, advisor curation, wiki curation, model-version response)_');
+  lines.push('');
+  lines.push('- [ ] ');
+  lines.push('');
+  lines.push('## Linked runs');
+  lines.push('');
+  for (const r of runs) {
+    lines.push(`- ${r.runId}  ${(r.startedAt || '').slice(0, 10)}  outcome=${r.outcome || '?'}  turns=${r.turnsCompleted}`);
+  }
+  lines.push('');
+  return lines.join('\n');
+}
+
+function cmdReviewNotes(args) {
+  // Optional: --output <file> to write the skeleton to a file. Default: stdout.
+  const outputIdx = args.flags ? args.flags.indexOf('--output') : -1;
+  const output = outputIdx >= 0 ? args.flags[outputIdx + 1] : null;
+  const runs = applyFilters(loadAllRuns(), args);
+  if (runs.length === 0) {
+    console.error('[run-query] No runs to review. Run the simulation first.');
+    process.exit(1);
+  }
+  const notes = buildReviewNotes(runs);
+  if (output) {
+    const fs = require('fs');
+    fs.writeFileSync(output, notes);
+    console.log(`[run-query] review notes written to ${output}`);
+  } else {
+    console.log(notes);
+  }
+}
+
+// ---------------------------------------------------------------
+// grammar-refine — emit a structured before/after comparison
+// ---------------------------------------------------------------
+
+/**
+ * Build a markdown comparison of two runs (before/after a grammar
+ * refinement). The orchestrator attaches this to a grammar commit's
+ * changelog per the orchestrator-role doc's Activity 2.
+ */
+function buildGrammarRefine(r1, r2) {
+  const lines = [];
+  lines.push(`# Grammar refinement — before/after comparison`);
+  lines.push('');
+  lines.push(`Before: \`${r1.runId}\` (${(r1.startedAt || '').slice(0, 10)}, model ${r1.model || '?'})`);
+  lines.push(`After:  \`${r2.runId}\` (${(r2.startedAt || '').slice(0, 10)}, model ${r2.model || '?'})`);
+  lines.push('');
+  lines.push('## Run-level comparison');
+  lines.push('');
+  lines.push(`| Property | Before | After |`);
+  lines.push(`|----------|--------|-------|`);
+  lines.push(`| Outcome | ${r1.outcome || '?'} | ${r2.outcome || '?'} |`);
+  lines.push(`| Turns completed | ${r1.turnsCompleted} | ${r2.turnsCompleted} |`);
+  if (r1.collapse && r2.collapse) {
+    lines.push(`| Collapse type | ${r1.collapse.type || '?'} | ${r2.collapse.type || '?'} |`);
+    lines.push(`| Collapse turn | ${r1.collapse.triggerTurn || '?'} | ${r2.collapse.triggerTurn || '?'} |`);
+  } else if (r1.collapse && !r2.collapse) {
+    lines.push(`| Collapse | ${r1.collapse.type || '?'} | none |`);
+  } else if (!r1.collapse && r2.collapse) {
+    lines.push(`| Collapse | none | ${r2.collapse.type || '?'} |`);
+  }
+  lines.push('');
+  lines.push('## Final state');
+  lines.push('');
+  const last1 = r1.turns.length > 0 ? r1.turns[r1.turns.length - 1].stateAfter : {};
+  const last2 = r2.turns.length > 0 ? r2.turns[r2.turns.length - 1].stateAfter : {};
+  const SIG_AXES = ['legitimacy', 'fiscal_slack', 'elite_alignment', 'ecological_debt', 'narrative_coherence', 'capability_frontier'];
+  lines.push('| Axis | Before | After |');
+  lines.push('|------|--------|-------|');
+  for (const axis of SIG_AXES) {
+    const v1 = last1[axis]?.value ?? '-';
+    const v2 = last2[axis]?.value ?? '-';
+    lines.push(`| ${axis} | ${v1} | ${v2} |`);
+  }
+  lines.push('');
+  lines.push('## Per-turn delta');
+  lines.push('');
+  lines.push('| Turn | Before Δ | After Δ |');
+  lines.push('|------|----------|---------|');
+  const maxTurns = Math.max(r1.turns.length, r2.turns.length);
+  for (let i = 0; i < maxTurns; i += 1) {
+    const t1 = r1.turns[i];
+    const t2 = r2.turns[i];
+    const d1 = t1 ? Object.entries(t1.stateDelta).filter(([_, v]) => v !== 0).map(([k, v]) => `${k}:${v > 0 ? '+' : ''}${v}`).join(' ') || '—' : '—';
+    const d2 = t2 ? Object.entries(t2.stateDelta).filter(([_, v]) => v !== 0).map(([k, v]) => `${k}:${v > 0 ? '+' : ''}${v}`).join(' ') || '—' : '—';
+    lines.push(`| ${i + 1} | ${d1} | ${d2} |`);
+  }
+  lines.push('');
+  lines.push('## Why this refinement was made');
+  lines.push('');
+  lines.push('_(brief note from the orchestrator on the behavior the refinement targets)_');
+  lines.push('');
+  lines.push('- ');
+  lines.push('');
+  return lines.join('\n');
+}
+
+function cmdGrammarRefine(args) {
+  if (args.files.length !== 2) {
+    console.error('[run-query] Usage: run-query.js grammar-refine <beforeRunId> <afterRunId>');
+    process.exit(1);
+  }
+  const r1 = loadRun(args.files[0]);
+  const r2 = loadRun(args.files[1]);
+  if (!r1 || !r2) {
+    console.error(`[run-query] Run not found: ${!r1 ? args.files[0] : args.files[1]}`);
+    process.exit(1);
+  }
+  console.log(buildGrammarRefine(r1, r2));
+}
+
+// ---------------------------------------------------------------
 // Help
 // ---------------------------------------------------------------
 
@@ -584,6 +883,12 @@ Usage:
   node scripts/run-query.js show <runId>         Full details of one run.
   node scripts/run-query.js pattern              Pattern analysis across runs.
   node scripts/run-query.js diff <id1> <id2>     Before/after comparison.
+  node scripts/run-query.js review-notes [--output file.md]
+                                                Emit a markdown review-notes skeleton
+                                                for the orchestrator to fill in.
+  node scripts/run-query.js grammar-refine <beforeRunId> <afterRunId>
+                                                Emit a structured before/after comparison
+                                                for attaching to a grammar commit.
 
 Outcomes: legitimacy-collapse | technical-collapse | narrative-capture-collapse | no-collapse | player-quit
 
@@ -605,6 +910,8 @@ function main() {
     case 'show': cmdShow(args); break;
     case 'pattern': cmdPattern(args); break;
     case 'diff': cmdDiff(args); break;
+    case 'review-notes': cmdReviewNotes(args); break;
+    case 'grammar-refine': cmdGrammarRefine(args); break;
     default: printHelp();
   }
 }
@@ -627,5 +934,10 @@ if (require.main === module) {
     cmdShow,
     cmdPattern,
     cmdDiff,
+    cmdReviewNotes,
+    cmdGrammarRefine,
+    // Markdown builders (for testing)
+    buildReviewNotes,
+    buildGrammarRefine,
   };
 }

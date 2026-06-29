@@ -2,8 +2,8 @@
 title: "Run log format — the structured record of every simulation run"
 description: "YAML-frontmatter run metadata (run_id, timestamps, model, wiki version), then per-turn entries (crisis, player move, grammar output, state delta, narrative move). The artifact generator consumes this log to produce the shareable artifact."
 type: mechanic
-version: "0.1.0"
-last_updated: 2026-06-28
+version: "0.2.0"
+last_updated: "2026-06-29"
 grounded_in:
   - "../docs/07-interpretation-grammar.md"
   - "../docs/11-openrouter-configuration.md"
@@ -80,6 +80,21 @@ The full state vector after the delta is applied:
 - narrative_coherence: 48 (eroded)
 - capability_frontier: 75 (strained)
 ```
+
+### Visible signals (Cycle 4c)
+
+When the run captured the visible-signal layer (the default for the interactive CLI as of Cycle 3c), the log includes a per-axis block naming the three signals and the discrepancy score:
+
+```markdown
+### Visible signals
+
+- legitimacy: approval polling [68/stra]  ·  public mood indicators [66/stra]  ·  street-level protest / rally reports [60/stra]  (discrepancy 5 pts)
+- capability_frontier: industry analyst headlines [strained]  ·  open-weight release announcements [40/erod]  ·  frontier-lab executive statements [81/hold]  (discrepancy 14 pts)
+```
+
+The discrepancy is the average point-distance between the visible signals and the hidden value at the same turn. It is the observable surface of the literacy device; the artifact's collapse reveal surfaces the visible-vs-hidden gap, and the run log carries the raw signal data so `scripts/run-query.js` can aggregate it across runs.
+
+This block is omitted for runs produced before Cycle 4c (the parser tolerates the absence).
 
 ### Collapse entry
 
