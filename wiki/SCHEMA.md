@@ -23,6 +23,7 @@ This wiki is the knowledge layer for the Polycrisis simulation game. It compiles
 - signals/ — filed Pressure Systems editions from the parent Metaviews project
 - mechanics/ — game-claim entries (Polycrisis-specific; distinct from corpus)
 - prototypes/ — prototype outputs and observed-model-behavior notes (per Principle 4.5)
+- proposals/ — wiki-ingest queue (per `scripts/wiki-ingest.js`, Cycle 4a). Files here have `status: pending | accepted | rejected` and are reviewed by the orchestrator before being committed into concepts/, entities/, themes/, or signals/.
 
 ## Controlled page types
 

@@ -210,3 +210,19 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
   - All other Phase 3 criteria: ✓ (3a/3b)
 - **Filed:** `wiki/prototypes/2026-06-29-phase-3c-visible-signals-and-distribution.md` documents the probe per Principle 4.5.
 - **Next:** Phase 3 ship-criteria verification final pass + Phase 4 (operator tooling) start.
+
+## 2026-06-29 — Phase 4a: wiki ingestion pipeline
+
+- **Action:** Built the wiki-ingest pipeline. `scripts/wiki-ingest.js` scans the parent Metaviews archive, pre-filters by date + AI-policy tag/title, runs LLM classification on survivors, and writes draft proposals to `wiki/proposals/`. Orchestrator reviews/accepts/rejects via CLI; on `commit`, accepted proposals are routed to the right `wiki/{concepts,entities,themes,signals}/` directory.
+- **New file:** `scripts/wiki-ingest.js` (single file, 600+ lines, 14 functions exported for in-process testing).
+- **Inherits from parent:** the parent's `wiki-ingest.js` pattern (parse frontmatter, walk archive, identify relevant pages, log to `wiki/log.md`).
+- **Differs from parent in two ways:**
+  1. Pre-filter (date + tag/title) before any LLM call. ~9% of parent files pass; the rest never cost a token.
+  2. Proposals, not auto-merge. Every entry lands in `wiki/proposals/` with `status: pending`. The orchestrator decides what enters the curated wiki.
+- **Verified:**
+  - `/tmp/hermes-verify-4a.sh` — 8 checks pass (pre-filter, dedup, accept/reject/commit routing, markdown fence sanitization, wiki audit)
+  - Real LLM scan (60-day window, MiniMax M3): 57 pre-filter survivors; 2 substantive proposals generated before timeout
+  - Both real proposals include corpus-grounded synthesis with internal links to existing wiki entries
+- **Generated proposals in queue:** 2 (one signal, one signal) — pending orchestrator review.
+- **Filed:** `wiki/prototypes/2026-06-29-phase-4a-wiki-ingest.md` documents the probe per Principle 4.5.
+- **Next:** Cycle 4b — run-log queryability.
