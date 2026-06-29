@@ -18,6 +18,7 @@
  */
 
 const { AXIS_NAMES, bandFor } = require('./state');
+const { buildDiscrepancyTimeline } = require('./visible-signals');
 
 const AXIS_LABELS = {
   legitimacy: 'Legitimacy',
@@ -242,6 +243,19 @@ function formatCollapseReveal(runResult) {
     lines.push('');
     lines.push('A player-quit is a kind of meta-collapse: the regime did not fall; the player chose to disengage. The hidden state at the moment of exit may have been drifting toward any of several trajectories, but the simulation never resolved.');
     lines.push('');
+    lines.push('**Visible signals vs hidden value at exit:**');
+    lines.push('');
+    lines.push('| Axis | Hidden band | Visible bands (3 signals) | Discrepancy |');
+    lines.push('|------|-------------|---------------------------|-------------|');
+    const timeline = buildDiscrepancyTimeline(runResult.turns);
+    const lastEntry = timeline[timeline.length - 1];
+    for (const [axis, info] of Object.entries(lastEntry.perAxis)) {
+      if (info.discrepancy >= 8) {
+        const visibleBands = info.visibleBands.join(' / ');
+        lines.push(`| ${AXIS_LABELS[axis]} | ${info.hiddenBand} | ${visibleBands} | ${info.discrepancy} pts |`);
+      }
+    }
+    lines.push('');
     return lines.join('\n');
   }
 
@@ -249,6 +263,21 @@ function formatCollapseReveal(runResult) {
     lines.push('No collapse fired during this run. The simulation completed without the threshold conditions for any of the three collapse modes (legitimacy, technical, narrative capture) being met.');
     lines.push('');
     lines.push('This outcome is rarer than it might seem. Most runs that reach turn 12-14 see at least one axis enter an eroded or collapsed band, even when full collapse does not fire. Reaching the end of the run without collapse suggests that the policy moves made (or the failure patterns present in the crises faced) did not push the regime to a tipping point.');
+    lines.push('');
+    lines.push('**Visible signals vs hidden value at end of run:**');
+    lines.push('');
+    lines.push('| Axis | Hidden band | Visible bands (3 signals) | Discrepancy |');
+    lines.push('|------|-------------|---------------------------|-------------|');
+    const timeline = buildDiscrepancyTimeline(runResult.turns);
+    const lastEntry = timeline[timeline.length - 1];
+    for (const [axis, info] of Object.entries(lastEntry.perAxis)) {
+      if (info.discrepancy >= 8) {
+        const visibleBands = info.visibleBands.join(' / ');
+        lines.push(`| ${AXIS_LABELS[axis]} | ${info.hiddenBand} | ${visibleBands} | ${info.discrepancy} pts |`);
+      }
+    }
+    lines.push('');
+    lines.push('The discrepancy column is the average point-distance between the visible signals and the hidden value. Even on runs that did not collapse, the visible signals reported a different band on at least one axis at the end of play. The literacy device holds across outcomes.');
     lines.push('');
     return lines.join('\n');
   }
@@ -270,7 +299,37 @@ function formatCollapseReveal(runResult) {
   lines.push('');
   lines.push('The collapse was not visible at the time of any single policy move. The state changes that produced the threshold conditions accumulated across turns, often in axes the player was not directly responding to. The interpretive chain section above traces the visible moves and their immediate effects; this section names the hidden accumulation.');
   lines.push('');
-  lines.push('Looking back, the player moves whose consequences were not visible at the time are those that produced small negative deltas on axes the player was not directly addressing — for example, a structural response to a capability crisis might leave legitimacy untouched, while the underlying legitimacy erosion continued. By the time the threshold was crossed, the cumulative drift was already several turns deep.');
+  // Visible-vs-hidden discrepancy timeline: this is the literacy device made
+  // material. For each turn, the player saw the visible signal bands; the
+  // hidden value was different. The discrepancy column shows the gap.
+  lines.push('**Visible signals vs hidden value, per turn:**');
+  lines.push('');
+  lines.push('| Turn | Axis | Hidden band | Visible bands (3 signals) | Discrepancy |');
+  lines.push('|------|------|-------------|---------------------------|-------------|');
+  const timeline = buildDiscrepancyTimeline(runResult.turns);
+  // Show only the largest discrepancies (where the player was misled)
+  const rows = [];
+  for (const entry of timeline) {
+    for (const [axis, info] of Object.entries(entry.perAxis)) {
+      if (info.discrepancy >= 12) {
+        const visibleBands = info.visibleBands.join(' / ');
+        rows.push({
+          turn: entry.turn,
+          axis: AXIS_LABELS[axis],
+          hidden: info.hiddenBand,
+          visible: visibleBands,
+          discrepancy: info.discrepancy,
+        });
+      }
+    }
+  }
+  // Sort by discrepancy descending, then by turn ascending
+  rows.sort((a, b) => b.discrepancy - a.discrepancy || a.turn - b.turn);
+  for (const row of rows.slice(0, 12)) {
+    lines.push(`| ${row.turn} | ${row.axis} | ${row.hidden} | ${row.visible} | ${row.discrepancy} pts |`);
+  }
+  lines.push('');
+  lines.push('Reading the table: in each row, the hidden value was in the band shown, but the three visible signals reported a different band. The discrepancy column is the average point-distance between the signals and the hidden value. These are the moments when the literacy device was doing its work — and when reading the signals critically would have changed the policy move.');
   lines.push('');
   return lines.join('\n');
 }

@@ -183,3 +183,30 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Next:** Cycle 3c — artifact distribution (URL hosting, Markdown rendering, shareable format).
 
 ---
+
+## 2026-06-29 — Phase 3c: visible-signal layer + artifact distribution
+
+- **Action:** Landed two Phase 3 ship criteria at once. Built the visible-signal layer (Principle 3.2, the literacy device) and the artifact distribution surface (self-contained HTML with content hash).
+- **New files:**
+  - `src/sim/visible-signals.js` — three signals per axis (lag, bias, partial regimes), discrepancy calculation, per-turn timeline
+  - `src/sim/artifact-render.js` — minimal markdown-to-HTML converter, inline CSS in Metavisions register, FNV-1a 32-bit content hash
+  - `wiki/mechanics/visible-signals.md` — mechanic entry for the visible-signal layer (version 0.1.0)
+  - `scripts/probe-html.js`, `scripts/probe-e2e.js` — verification probes
+- **Changed files:**
+  - `src/sim/state-display.js` — added `formatVisibleSignalsDisplay()`; play uses it, artifact uses hidden-value table
+  - `src/sim/artifact-generator.js` — collapse reveal, player-quit, and no-collapse branches now include a visible-vs-hidden discrepancy table
+  - `src/sim/run-async.js` — `writeArtifact()` produces both markdown and HTML
+  - `src/sim/interactive.js` — `displayState` uses visible signals; artifact generation writes both formats
+  - `src/sim/index-async.js` — same artifact generation update
+  - `wiki/index.md` — registered the new entry under "Core mechanics"
+- **Verified:**
+  - `node /tmp/hermes-verify-3c.sh` — all 8 verifications pass
+  - Probe: 10 band-divergent signals across a representative 10-turn run (literacy device fires)
+  - HTML: 5.3 KB self-contained file, no external scripts/stylesheets/images, content hash verifiable
+  - Wiki audit: 57 indexed pages, 0 schema issues, 0 short pages
+- **Phase 3 ship criteria status:**
+  - Visible signal layer fragmented by design: ✓ (3c)
+  - Artifact shareable as text or self-contained URL: ✓ (3c)
+  - All other Phase 3 criteria: ✓ (3a/3b)
+- **Filed:** `wiki/prototypes/2026-06-29-phase-3c-visible-signals-and-distribution.md` documents the probe per Principle 4.5.
+- **Next:** Phase 3 ship-criteria verification final pass + Phase 4 (operator tooling) start.

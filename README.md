@@ -4,7 +4,7 @@ A simulation game where you begin already in power and must govern through a con
 
 ## Project status
 
-**Phase 2 complete. Phase 3 starting.** The simulation engine is operational. A real-LLM session can be run end-to-end against MiniMax M3 (or any OpenRouter-supported model) and produces an 8-section shareable artifact. Next phase: player-experience UI and artifact distribution.
+**Phase 3 complete. Phase 4 starting.** The simulation engine is operational, the interactive CLI shows the visible-signal layer (deliberately unreliable — the literacy device), and every run produces a shareable 8-section artifact in both markdown and self-contained HTML (with FNV-1a content hash for verification). Next phase: operator tooling (wiki ingestion, run-log aggregation, pattern review).
 
 The project is being built deliberately, not assembled quickly. The wiki, the grammar, the state model, the crisis anatomy, and the shareable artifact are being specified against the curated Metaviews corpus as ground truth, with the LLM as a documented and swappable component of the system.
 
@@ -49,7 +49,8 @@ node src/sim/test-cases.js
 
 # Run a scripted end-to-end session and produce an artifact:
 node src/sim/index-async.js --script scripts/player-script-default.txt --turns 9
-# Output: runs/<run-id>.md (run log) and runs/<run-id>-artifact.md (artifact)
+# Output: runs/<run-id>.md (run log), runs/<run-id>-artifact.md (artifact),
+# and runs/<run-id>-artifact.html (self-contained HTML for sharing)
 ```
 
 The wiki retrieval is grounded in the parent Metaviews archive. To point this project at a different corpus, edit `wiki/` directly (corpus entries are markdown files with frontmatter).

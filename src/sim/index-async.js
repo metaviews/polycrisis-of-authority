@@ -21,8 +21,9 @@
 
 const fs = require('fs');
 const path = require('path');
-const { runSimulationAsync, writeRunLog } = require('./run-async');
+const { runSimulationAsync, writeRunLog, writeArtifact } = require('./run-async');
 const { generateArtifact } = require('./artifact-generator');
+const { renderArtifactHtml } = require('./artifact-render');
 
 function parseScript(scriptPath) {
   const content = fs.readFileSync(scriptPath, 'utf8');
@@ -138,11 +139,20 @@ async function main() {
   console.log(`  Turns: ${result.turnsCompleted}`);
   console.log(`  Run log: ${runLogPath}`);
 
-  // Generate artifact
+  // Generate artifact (markdown + self-contained HTML)
   const artifact = generateArtifact(result);
   const artifactPath = path.join(outputDir, `${result.runId}-artifact.md`);
   fs.writeFileSync(artifactPath, artifact);
-  console.log(`  Artifact: ${artifactPath}`);
+  const html = renderArtifactHtml(artifact, {
+    runId: result.runId,
+    model: result.model,
+    outcome: result.outcome,
+    hashOf: result.runLog,
+  });
+  const htmlPath = path.join(outputDir, `${result.runId}-artifact.html`);
+  fs.writeFileSync(htmlPath, html);
+  console.log(`  Artifact:   ${artifactPath} (${(artifact.length / 1024).toFixed(1)} KB markdown)`);
+  console.log(`  Shareable:  ${htmlPath} (${(html.length / 1024).toFixed(1)} KB self-contained HTML)`);
   console.log('');
 
   // Brief summary

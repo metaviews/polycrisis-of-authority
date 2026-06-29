@@ -231,8 +231,28 @@ function writeRunLog(result, outputDir = './runs') {
   return filepath;
 }
 
+function writeArtifact(result, outputDir = './runs') {
+  fs.mkdirSync(outputDir, { recursive: true });
+  const { generateArtifact } = require('./artifact-generator');
+  const { renderArtifactHtml } = require('./artifact-render');
+  const md = generateArtifact(result);
+  const mdPath = path.join(outputDir, `${result.runId}-artifact.md`);
+  fs.writeFileSync(mdPath, md);
+  // Self-contained HTML for distribution per docs/09-artifact-template.md
+  const html = renderArtifactHtml(md, {
+    runId: result.runId,
+    model: result.model,
+    outcome: result.outcome,
+    hashOf: result.runLog,
+  });
+  const htmlPath = path.join(outputDir, `${result.runId}-artifact.html`);
+  fs.writeFileSync(htmlPath, html);
+  return { mdPath, htmlPath };
+}
+
 module.exports = {
   runSimulationAsync,
   writeRunLog,
+  writeArtifact,
   generateRunId,
 };

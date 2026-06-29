@@ -4,10 +4,21 @@
  * state-display.js
  *
  * Formats the state vector for terminal display during interactive play.
- * Player sees state at every turn — full visibility, not summary.
+ *
+ * Two modes:
+ *   - formatStateBlock: shows the hidden state (used in artifact only,
+ *     since the artifact is the transparency surface per Principle 2.1).
+ *   - formatVisibleSignalsBlock: shows the visible-signal layer (used
+ *     during play, per Principle 3.2). The player does NOT see the
+ *     hidden value during play — that's the literacy device.
+ *
+ * Per docs/06-state-model.md: "Visible signals... deliberately unreliable
+ * (per Principle 3.2). The player reads the signals critically; the
+ * simulation's hidden value may be different."
  */
 
 const { AXIS_NAMES, bandFor } = require('./state');
+const { renderVisibleSignals, formatVisibleSignalsBlock: renderVSB } = require('./visible-signals');
 
 const AXIS_LABELS = {
   legitimacy: 'Legitimacy',
@@ -27,6 +38,7 @@ const BAND_INDICATORS = {
 
 function formatStateCompact(state) {
   // Single-line summary: each axis name + value + band indicator
+  // Uses hidden value (artifact surface only).
   const parts = AXIS_NAMES.map((axis) => {
     const v = state[axis];
     const band = bandFor(v);
@@ -38,7 +50,9 @@ function formatStateCompact(state) {
 }
 
 function formatStateBlock(state) {
-  // Multi-line table
+  // Multi-line table of HIDDEN state. Used in the artifact (transparency
+  // surface). NOT used during play — the player sees the visible-signal
+  // layer instead.
   const lines = [];
   lines.push('  Axis                       Value  Band');
   lines.push('  ──────────────────────────  ─────  ─────────');
@@ -69,10 +83,23 @@ function formatDeltaBlock(delta) {
   return lines.join('\n');
 }
 
+/**
+ * Format the visible-signal layer for play. The player sees the three
+ * named signals per axis, with band/value, plus a discrepancy warning
+ * when signals diverge from the hidden value by >= 12 points.
+ *
+ * The hidden value is NOT shown — that's the literacy device.
+ */
+function formatVisibleSignalsDisplay({ hiddenState, hiddenHistory, turn, stateBefore }) {
+  const signals = renderVisibleSignals({ hiddenState, hiddenHistory, turn, stateBefore });
+  return renderVSB(signals, hiddenState);
+}
+
 module.exports = {
   AXIS_LABELS,
   BAND_INDICATORS,
   formatStateCompact,
   formatStateBlock,
   formatDeltaBlock,
+  formatVisibleSignalsDisplay,
 };

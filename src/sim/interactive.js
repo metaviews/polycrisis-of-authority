@@ -27,8 +27,9 @@ const { selectCrisis } = require('./crisis-generator');
 const { interpret } = require('./grammar');
 const { consult, ADVISOR_VOICES } = require('./advisors');
 const { generateArtifact } = require('./artifact-generator');
+const { renderArtifactHtml } = require('./artifact-render');
 const { selectInterlude, formatInterlude } = require('./interlude');
-const { formatStateBlock, formatStateCompact, formatDeltaBlock } = require('./state-display');
+const { formatStateBlock, formatStateCompact, formatDeltaBlock, formatVisibleSignalsDisplay } = require('./state-display');
 const { section, subsection, indent, wrap, numberedChoice, pause } = require('./cli-format');
 
 const ROOT_DIR = path.join(__dirname, '..', '..');
@@ -98,9 +99,14 @@ function createReader() {
   };
 }
 
-function displayState(state, label = 'CURRENT STATE') {
+function displayState(state, label = 'CURRENT STATE', { hiddenHistory = [], turn = 1, stateBefore = null } = {}) {
   console.log(section(label));
-  console.log(formatStateBlock(state));
+  console.log(formatVisibleSignalsDisplay({
+    hiddenState: state,
+    hiddenHistory,
+    turn,
+    stateBefore: stateBefore || state,
+  }));
 }
 
 function displayPreviousTurnSummary(turn) {
@@ -214,7 +220,15 @@ async function runInteractive({ maxTurns = 14, model = process.env.OPENROUTER_MO
       // of the previous turn. For turn 1, there's no previous state, so
       // pass null to suppress the delta display.
       displayPreviousTurnSummary(turns.length > 0 ? turns[turns.length - 1] : null);
-      displayState(state, `STATE BEFORE TURN ${turn}`);
+      // Visible signal display: shows the three named signals per axis
+      // (deliberately unreliable per Principle 3.2). The hidden value
+      // is not shown during play — that's the literacy device.
+      // History of hidden states feeds the lag-based signals.
+      displayState(state, `STATE BEFORE TURN ${turn}`, {
+        hiddenHistory: turns.map((t) => t.stateBefore),
+        turn,
+        stateBefore: state,
+      });
       displayCrisis(crisis, turn);
 
       // 3. Player chooses: write own policy OR consult advisor
@@ -362,14 +376,25 @@ async function runInteractive({ maxTurns = 14, model = process.env.OPENROUTER_MO
 
   console.log(section('GENERATING ARTIFACT'));
   const artifact = generateArtifact(result);
+  const runLog = buildRunLog(result);
   const outputDir = path.join(ROOT_DIR, 'runs');
   fs.mkdirSync(outputDir, { recursive: true });
   const runLogPath = path.join(outputDir, `${runId}.md`);
   const artifactPath = path.join(outputDir, `${runId}-artifact.md`);
-  fs.writeFileSync(runLogPath, buildRunLog(result));
+  fs.writeFileSync(runLogPath, runLog);
   fs.writeFileSync(artifactPath, artifact);
-  console.log(`  Run log:  ${runLogPath}`);
-  console.log(`  Artifact: ${artifactPath}`);
+  // Self-contained HTML for distribution per docs/09-artifact-template.md
+  const htmlPath = path.join(outputDir, `${runId}-artifact.html`);
+  const html = renderArtifactHtml(artifact, {
+    runId,
+    model,
+    outcome,
+    hashOf: runLog,
+  });
+  fs.writeFileSync(htmlPath, html);
+  console.log(`  Run log:    ${runLogPath}`);
+  console.log(`  Artifact:   ${artifactPath} (${(artifact.length / 1024).toFixed(1)} KB markdown)`);
+  console.log(`  Shareable:  ${htmlPath} (self-contained HTML, ${(html.length / 1024).toFixed(1)} KB)`);
 
   return result;
 }
