@@ -4,7 +4,7 @@ _Defines the five MVP-0 advisor voices, their prompt templates, and the describe
 
 This spec defines what the player consults *before* writing their policy. The grammar spec defines what happens when the player writes; the artifact template spec defines what the player takes away. This spec defines the in-between moment — when the player is uncertain, when the policy space feels too large, when the player wants to know how a real position sees the crisis.
 
-The advisor function is the literacy scaffold (per Principle 4.2 and the vision doc). It is constrained to *describe* how a represented position sees the crisis; it does not *recommend* what the player should do. This constraint is the load-bearing design choice for the advisor function — it's what preserves the literacy claim that the player's authored text is what gets interpreted.
+The advisor function is welcome in all its forms (per Principle 4.2 and the vision doc). A player may consult an advisor as a briefing and author their own policy; or, in easy mode, the player can adopt the advisor's framing as their move directly. Each is a complete form of play — the player who adopts an advisor's position is *playing as that position*, which is a real form of governance in the simulation. The describe-not-recommend constraint still applies: the advisor describes the position, not the player's situation relative to it. The literacy claim is satisfied as long as the encounter with the system, whatever the input path, is felt.
 
 ## Purpose and scope
 
@@ -12,7 +12,7 @@ The advisor function is the literacy scaffold (per Principle 4.2 and the vision 
 
 The response is grounded in the corpus. It draws on specific wiki entries that document the represented position. The grounding is auditable: the artifact surfaces which entries each advisor response drew on.
 
-**What the advisor function does NOT do.** The advisor function does not recommend actions. It does not suggest specific policy language. It does not tell the player what move to make. A player who consults an advisor and writes the resulting policy in the advisor's own words has not governed — they have transcribed. Per Principle 4.2, this is a literacy failure the prompts are designed to prevent.
+**What the advisor function does NOT do.** The advisor function does not recommend actions *to the player* — it does not tell the player what move to make. But the advisor's response can be adopted *as* a move (easy mode); the describe-not-recommend constraint governs what the advisor *says*, not what the player does with what was said.
 
 Specifically, the advisor does not:
 
@@ -438,8 +438,8 @@ When the advisor prompts are implemented (Phase 2 build), additional ship criter
 
 ## Sources for this spec
 
-- The vision document (`docs/00-vision.md`) — the advisor function's role as literacy scaffold.
-- The design principles (`docs/02-design-principles.md`) — especially Principles 2.4 (position-representation is corpus-grounded), 4.2 (advisor cast is curated).
+- The vision document (`docs/00-vision.md`) — the advisor function's role in the edutainment design; literacy/easy-mode framing.
+- The design principles (`docs/02-design-principles.md`) — especially Principles 2.4 (position-representation is corpus-grounded), 4.2 (advisor cast is curated, advisor function welcome in all forms), 6 (the simulation is enjoyed, not just understood).
 - The corpus synthesis (`docs/01-corpus-synthesis.md`) — the actor cast and their documented positions.
 - The interpretation grammar spec (`docs/07-interpretation-grammar.md`) — what the grammar does *after* the advisor consultation; the wiki retrieval integration pattern.
 - The artifact template spec (`docs/09-artifact-template.md`) — how advisor consultations surface in the artifact.

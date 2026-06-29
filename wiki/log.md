@@ -326,3 +326,17 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Phase 4 complete.** All 3 ship criteria green.
 - **Filed:** `wiki/prototypes/2026-06-29-phase-4e-handoff-protocol.md` documents the probe per Principle 4.5.
 - **Next:** Phase 5 — first-run validation. Not a build phase; an observation phase. 20-30 external players with orchestrator observation.
+
+## 2026-06-29 — Phase 5a: doc pass (edutainment reframe, Principle 6, advisor welcome)
+
+- **Action:** Doc-only cycle. No code. The user pushed back on the original literacy claim — too curriculum-shaped, too measurable, not actually supportable. Also: one player, not 20-30; advisor easy mode is welcome, not suspect.
+- **Three reframings landed:**
+  1. **Vision doc** primary purpose renamed to "edutainment." The five pedagogical claims are reframed as "Design aspirations" with explicit "design goals, not guarantees" language. New litmus-test paragraph: "a player who finishes a run should want to start another." The case-study claim is now framed as the more rigorous one.
+  2. **Principles doc Principle 6** added: the simulation is enjoyed, not just understood. Five what-this-constrains items (crisis surface evocative, collapse reveal as recognition, free-text at any length, easy-mode welcome, artifact has a throughline). The why-this-principle paragraph carries the taoist frame implicitly (right governance does less, yielding is action, modest awareness is durable) without naming the tradition. Litmus test: a player finishes a run, wants to start another.
+  3. **Advisor function reframed as welcome.** Principle 2.4 transcription-mistrust line replaced with a parenthetical pointing to 4.2. Principle 4.2 gained a closing paragraph naming the three input paths (consult as briefing, adopt as move in easy mode, decline and author) as complete forms of play. docs/10-advisor-prompts.md updated in two places.
+- **README** updated: Phase 5 reframed as usability walkthrough, "20-30 external players" reference removed, edutainment named, advisor section describes easy mode as a complete form of play.
+- **Verified:**
+  - `/tmp/hermes-verify-5a.sh` — 7 checks pass (vision reframed, Principle 6 added, Principle 4.2 reframed, README updated, advisor prompts spec updated, all 5 prior cycle verifications still pass, wiki audit clean)
+  - Wiki audit: 63 indexed, 0 schema, 0 broken links
+- **Filed:** `wiki/prototypes/2026-06-29-phase-5a-doc-pass-edutainment.md` documents the probe per Principle 4.5.
+- **Next:** Play the game. Run the four player archetypes (structural / symbolic / mixed / speedrun) per the handoff protocol's day-2 test list. Read the artifacts. Check the litmus test.

@@ -62,7 +62,7 @@ The wiki has a `mechanics/` entry type distinct from the corpus entry types. `me
 
 When an advisor voice speaks for a position — the MVP-0 cast of frontier-lab, civil-society, state-security, open-source, and international-ally is a worked example — that voice is grounded in specific corpus entries documenting that position. The grounding is auditable from inside the artifact.
 
-**Why this principle:** the advisor function is a literacy scaffold, not a multiple-choice menu. Its value depends on the represented positions being real, documented, and contestable. An advisor voice that has no corpus grounding is decoration. Advisors are constrained to *describe* how a represented position sees the crisis — they do not recommend actions, do not suggest specific policy language, and do not collapse into answer-giving. A player who consults an advisor and writes the resulting policy in the advisor's own words has not governed; they have transcribed. The literacy claim requires that the player's authored text remain the input that gets interpreted.
+**Why this principle:** the advisor function is a literacy scaffold, not a multiple-choice menu. Its value depends on the represented positions being real, documented, and contestable. An advisor voice that has no corpus grounding is decoration. Advisors are constrained to *describe* how a represented position sees the crisis — they do not recommend actions, do not suggest specific policy language, and do not collapse into answer-giving. (Easy mode, where the player adopts the advisor's framing as their move, is a separate path and is welcome in its own right — see Principle 4.2.)
 
 **What this constrains:** every advisor voice has at least one corpus entry (or set of entries) it is grounded in. The artifact surfaces those entries. New advisors are added by the orchestrator, not generated; the orchestrator's judgment about what position an advisor represents and whether the corpus supports that representation is required. Advisor prompts are constrained to description and analysis of how a position sees a crisis — they do not produce recommended actions or suggested policy language for the player to copy.
 
@@ -118,6 +118,8 @@ New advisors are added by the orchestrator after explicit consideration of (a) w
 
 **What this constrains:** the MVP-0 cast is named and grounded in specific corpus entries. Additions to the cast are made by editing the wiki's `mechanics/advisors.md` entry, not by running a generation step.
 
+The advisor function is welcome in all its forms. A player may consult an advisor as a briefing, adopt an advisor's framing as their move (easy mode), or decline to consult at all and author their own policy. Each is a complete form of play, not a downgrade. The player who adopts an advisor's position is *playing as that position* — they are governing from a stance, which is a real form of governance. The literacy claim does not require that the player author original text; it requires that the encounter with the system, whatever the input path, be felt.
+
 ### Principle 4.3 — The interpretation grammar's refinements are auditable
 
 When the orchestrator refines the interpretation grammar — adding a policy-mechanism recognition pattern, adjusting how a state axis responds to player text, sharpening a collapse threshold — the change is recorded in the wiki's log, with the prior version, the new version, and the reason for the change.
@@ -143,6 +145,22 @@ The design specs and the operational prototypes are in dialogue, not in sequence
 **What this constrains:** the design process includes operational prototypes as a first-class activity, not a separate phase after design is "done." Each major spec (state model, interpretation grammar, crisis anatomy, advisor templates) gets a prototyping moment that informs the spec — probes against the model, observations of behavior, "what does this feel like?" experiments. Prototype outputs are filed, not thrown away: probe runs, observed-model-behavior notes, and the orchestrator's interpretation of what the probes revealed become wiki entries or wiki log entries. The wiki log records not just what changed in the wiki but what the design team learned about how the system works.
 
 The posture is the middle position: lightweight probes during spec drafting, with the option to escalate to a more substantial prototype environment once the state model and grammar specs are committed. Specs remain authoritative for what the system does; prototypes inform what specs to write and how to refine them after they're committed.
+
+### Principle 6 — The simulation is enjoyed, not just understood
+
+The project is edutainment. The literacy claim (Principles 2 and 3) holds only when the experience is one the player wants to have again and share. A session that is informative but joyless fails both purposes; the design must serve *both* the literacy surface and the pleasure of engaging with it.
+
+**What this constrains:**
+
+- The crisis surface must be evocative, not mechanical. A crisis that reads as a procedural event fails the principle; a crisis that reads as a situation the player has feelings about succeeds.
+- The collapse reveal must land as a moment of recognition, not a debrief. The visible-signal-vs-hidden gap in the artifact's collapse reveal is the pedagogical climax *and* the dramatic one.
+- Free-text policy input is encouraged at any length. Three words and three paragraphs are equally valid input; the system responds to what was said, not how much. A player who writes "summit tomorrow" is governing; a player who writes a 200-word briefing is governing. Neither is more legitimate.
+- The advisor function in easy mode is a complete form of play (per Principle 4.2). The design optimizes for the easy-mode response reading well in isolation — a player who picks "consult the international-ally advisor" should get a response that *sounds like* an international-ally voice, with real policy substance, not a generic platitude.
+- The shareable artifact should have a throughline — the trajectory of the regime as a narrative the player wants to share. A report-shaped artifact that reads as a debrief does less work for the case-study claim than a story-shaped artifact does.
+
+**Why this principle:** the project is governed by an underlying sensibility — the right governance often does less rather than more; yielding to conditions is a form of action; the modest awareness a player walks away with is more durable than a curriculum would be. That sensibility is *not* explicit in the project (no thematic framing surfaces to the player), but it informs every design decision: the bounded per-turn deltas so that doing-more plateaus; the absence of a victory condition; the play invitation in the artifact (the run matters for being shared, not for being won); the easy-mode advisor as a complete form of play. The player should not be able to articulate this principle. They should simply find the experience hard to put down.
+
+**The litmus test:** a player who finishes a run should want to start another. If they don't, this principle has failed, regardless of whether the literacy claim is satisfied on paper.
 
 ## How to use this document
 

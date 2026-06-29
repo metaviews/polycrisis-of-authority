@@ -14,13 +14,15 @@ This is not a finished game and not a frozen artifact. It is a build-and-tend pr
 
 The project serves two purposes, and the design must serve both. They are not separable in practice but they are distinguishable in design.
 
-### Primary purpose — political and policy literacy
+### Primary purpose — edutainment
 
-The game is a literacy device. The claim is that playing it changes the player's understanding of how policy actually works: how language constitutes policy; how policy stabilizes some conditions while quietly weakening others; how authority is sustained by signals that are themselves fragmented; how collapse is most often sudden because the conditions that made it possible were never directly observable.
+The project is edutainment. The literacy claim is that playing the game gives the player a felt encounter with the complexity of policy and the randomness of politics — a modestly increased awareness, not a curriculum. The player walks away with a slightly more humbled sense of how policy actually works under pressure, because they tried to govern and felt the complexity in their hands.
 
-The literacy claim is bounded. The game does not teach AI policy. It teaches *the texture of policy under pressure* — what it costs, what it covers, what it leaves untouched, what it makes possible and what it forecloses — using AI policy as a focused domain because AI policy is unusually good at surfacing that texture.
+The case-study framing (the project's secondary purpose, below) is the more rigorous claim: the project is a controlled setting in which to observe the interpretive behavior of language models. The literacy claim is the *experience* that makes the case-study worth running.
 
-What the game claims to teach:
+The literacy claim is bounded. The game does not teach AI policy. It does not teach transferable competence in governance. What it offers is a *modest* increase in awareness of how complex policy is, delivered through an experience the player wants to have again. The design goal is that the experience be enjoyable enough to be worth re-entering and worth sharing, *and* that re-entering and sharing be the way the modest literacy happens.
+
+**Design aspirations.** The following claims describe what the project aims to support, not what it has measured. They are aspirations the design works toward; whether any given player's run lands on any of them is not guaranteed. The aspirations are:
 
 - Policy is a tool whose effects depend on the conditions it enters into, not the intentions behind it. The same words in different states produce different outcomes.
 - Authority is sustained by multiple sources at once — public mood, elite alignment, narrative coherence, material capacity, ecological conditions, capability frontiers. These erode unevenly. Collapse is rarely total until very late.
@@ -28,11 +30,14 @@ What the game claims to teach:
 - Language is load-bearing. The way a policy is written matters to what it does. This is true in real governance and it is true in the simulation; the simulation makes it legible by being legible itself.
 - Governance happens in the presence of multiple positions, not in a vacuum. A policy move is also a choice about whose advice to take, whose framing to adopt, whose warning to discount. The in-play advisor function makes this legible by surfacing real, corpus-grounded positions the player can weigh or reject.
 
-What the game does NOT claim to teach:
+**What the game does NOT claim to teach:**
 
 - The factual content of any specific AI policy debate. The game uses AI policy as a domain; it is not a substitute for engagement with that domain on its own terms.
 - That any particular governance outcome is right or wrong. The game is diagnostic, not prescriptive.
 - That players will become better at governing in real life. The game teaches texture and relationship, not transferable competence.
+- That the literacy aspirations above will land in any given session. They are design goals, not guarantees.
+
+**What the litmus test for the design looks like.** The literacy claim is satisfied when a player finishes a run and wants to start another. If the experience is informative but joyless, the claim has failed, regardless of whether the aspirations above are supported. The design must serve both the literacy surface and the pleasure of engaging with it (see Principle 6 in `02-design-principles.md`).
 
 ### Secondary purpose — showcase the capabilities and unpredictability of LLMs
 
