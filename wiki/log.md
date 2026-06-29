@@ -258,3 +258,23 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
   - Prior cycle verifications (`hermes-verify-4a.sh`, `hermes-verify-4b.sh`) still pass — no regressions
 - **Filed:** `wiki/prototypes/2026-06-29-phase-4c-pattern-review.md` documents the probe per Principle 4.5.
 - **Next:** Cycle 4d — model-version log.
+
+## 2026-06-29 — Phase 4d: model-version log
+
+- **Action:** Built the model-version log per the roadmap's Phase 4 build order item 5 and the orchestrator-role doc's Activity 5. `wiki/mechanics/model-versions.md` is the append-only log; `scripts/model-log.js` is the CLI for managing it.
+- **New files:**
+  - `scripts/model-log.js` — single file, ~13KB, 11 exported functions
+  - `wiki/mechanics/model-versions.md` — mechanic entry v0.1.0 with the initial-model entry
+- **Four commands:**
+  - `current` — show current `.env` model + 3 most recent log entries
+  - `list` — show all recorded switches with all fields
+  - `record <old> <new> [opts]` — append a new switch entry (`--reason`, `--before`, `--after`, `--observation`, `--judgment`, `--linked`)
+  - `compare <beforeId> <afterId>` — produce a structured before/after comparison (delegates to `run-query.js` `grammar-refine`)
+- **Judgment format:** the load-bearing field. Marker is `intervention` or `no-intervention`; optional free-form note follows. The marker is machine-readable; the note is for the audit trail.
+- **Initial entry filed:** `minimax/minimax-m3` chosen as initial model per the project's case-study framing. After runs referenced: 20260628223813-8jtf0r, 20260628231154-dzl75j, 20260629064319-h80unb-speedrun. Judgment: `no-intervention` — the model's interpretive style aligns with the grammar spec.
+- **Verified:**
+  - `/tmp/hermes-verify-4d.sh` — 10 checks pass (env parsing, buildEntry, appendEntry preserves log, parseEntries round-trips with structured judgment, cmdCurrent, cmdList, loadRun, cmdCompare, wiki audit)
+  - Regression: prior cycle verifications (`hermes-verify-4a.sh`, `hermes-verify-4b.sh`, `hermes-verify-4c.sh`) still pass
+- **Filed:** `wiki/prototypes/2026-06-29-phase-4d-model-log.md` documents the probe per Principle 4.5.
+- **Phase 4 build order complete:** wiki ingest (4a), wiki audit (Phase 1), run log format (Phase 2/4b), pattern review (4c), model-version log (4d). All 5 roadmap items are now landed.
+- **Next:** Cycle 4e — handoff protocol.
