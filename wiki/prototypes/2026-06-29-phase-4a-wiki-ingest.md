@@ -23,11 +23,21 @@ The pipeline follows the parent project's `wiki-ingest.js` conventions with two 
 - Wiki audit still clean: 58 indexed pages, 0 schema issues
 
 **Real LLM scan** (60-day window, MiniMax M3, OpenRouter):
-- 57 candidates passed pre-filter
-- 2 proposals generated in 120s before timeout (LLM is rate-limited)
-- Both proposals are corpus-grounded, link to existing wiki entries, name the relevant axis and failure pattern, and suggest concrete simulation scenarios
+- 57 candidates passed pre-filter (out of 517 parent files)
+- 4 substantive proposals generated across two scan runs (rate-limited; ~120s per scan)
+- All 4 proposals are corpus-grounded, link to existing wiki entries, name the relevant axis and failure pattern, and suggest concrete simulation scenarios
 
-The two real proposals (`wiki/proposals/2026-05-01-...md` and `wiki/proposals/2026-05-04-...md`) demonstrate the pipeline's value: each one identifies a load-bearing signal that the curated wiki could incorporate, names the existing wiki pages it relates to (`concepts/algorithmic-authority`, `signals/2026-04-29-algorithmic-warfare-care-deficit`, `themes/ai-and-power-dynamics`, `concepts/ai-arms-race`), and proposes a synthesis in wiki-voice prose. The orchestrator can accept either, reject either, or run another scan with a larger window to generate more candidates.
+The 4 real proposals in `wiki/proposals/` (`2026-05-01-algorithmic-power-supply-chains-and-sovereignty.md`, `2026-05-04-algorithmic-authority-versus-care-infrastructure.md`, `2026-05-04-pressure-systems-the-materialization-of-algorithmic-authorit.md`, `2026-05-05-epistemic-fractures-demand-the-impossible.md`) demonstrate the pipeline's value: each identifies a load-bearing signal that the curated wiki could incorporate, names the existing wiki pages it relates to (`concepts/algorithmic-authority`, `signals/2026-04-29-algorithmic-warfare-care-deficit`, `themes/ai-and-power-dynamics`, `concepts/ai-arms-race`, `concepts/cognitive-authority`), and proposes a synthesis in wiki-voice prose. The orchestrator can accept any, reject any, or run another scan with a larger window to generate more candidates.
+
+The LLM also exhibits good judgment: during the second scan, the model rejected one post as a near-duplicate of an existing signal, logging the reasoning ("the title and date closely mirror the existing 2026-05-05 signal... suggesting this is either a duplicate or a near-duplicate of already-captured material"). The orchestrator's review queue won't accumulate redundant proposals.
+
+## Refinements during the cycle
+
+**Link rewriting.** The LLM produces root-relative links like `concepts/foo.md`; from a file in `wiki/proposals/`, these resolve to non-existent paths (`wiki/proposals/concepts/foo.md`). The script now rewrites root-relative internal links to file-relative ones (e.g. `../concepts/foo.md`) as a post-processing step. The LLM prompt is also updated to instruct the model to use file-relative paths from the start. Both layers are needed — the prompt for cleaner first-pass output, the rewrite as a safety net.
+
+**Markdown fence sanitization.** LLMs (including the one in use) often wrap markdown output in ```markdown code fences, especially when the prompt says "return ONLY the markdown content." The write path strips leading and trailing fences so the file has clean frontmatter from the start.
+
+**Schema awareness.** `wiki/SCHEMA.md` is updated to list `proposals/` as a valid directory. The wiki audit previously flagged proposal files as schema violations because the directory wasn't in the allow-list; this surfaced during testing and was fixed in the same cycle.
 
 ## Design notes
 

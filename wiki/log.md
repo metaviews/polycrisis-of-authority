@@ -220,9 +220,27 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
   1. Pre-filter (date + tag/title) before any LLM call. ~9% of parent files pass; the rest never cost a token.
   2. Proposals, not auto-merge. Every entry lands in `wiki/proposals/` with `status: pending`. The orchestrator decides what enters the curated wiki.
 - **Verified:**
-  - `/tmp/hermes-verify-4a.sh` — 8 checks pass (pre-filter, dedup, accept/reject/commit routing, markdown fence sanitization, wiki audit)
-  - Real LLM scan (60-day window, MiniMax M3): 57 pre-filter survivors; 2 substantive proposals generated before timeout
-  - Both real proposals include corpus-grounded synthesis with internal links to existing wiki entries
-- **Generated proposals in queue:** 2 (one signal, one signal) — pending orchestrator review.
+  - `/tmp/hermes-verify-4a.sh` — 9 checks pass (pre-filter, dedup, accept/reject/commit routing, markdown fence sanitization, link rewriting, wiki audit)
+  - Real LLM scan (60-day window, MiniMax M3): 57 pre-filter survivors out of 517 parent files; 4 substantive proposals generated; LLM rejected 1 post as a near-duplicate of an existing signal
+  - All 4 real proposals include corpus-grounded synthesis with internal links to existing wiki entries
+- **Generated proposals in queue:** 4 (2 signals, 2 signals — pending orchestrator review).
+- **Refinements during cycle:**
+  - Link rewrite: LLM produces root-relative links (`concepts/foo.md`); the script rewrites them to file-relative (`../concepts/foo.md`) so they resolve correctly from `wiki/proposals/`.
+  - Markdown fence sanitization: the write path strips ```markdown fences that some LLMs add.
+  - `wiki/SCHEMA.md` updated to list `proposals/` as a valid directory (was triggering schema violations in the audit).
 - **Filed:** `wiki/prototypes/2026-06-29-phase-4a-wiki-ingest.md` documents the probe per Principle 4.5.
 - **Next:** Cycle 4b — run-log queryability.
+
+## 2026-06-29 — Phase 4b: run-log queryability
+
+- **Action:** Built `scripts/run-query.js`, a queryable interface over the run logs in `runs/*.md`. Six commands: `list`, `summary`, `show <runId>`, `pattern`, `diff <id1> <id2>`, `help`. Filter flags on `list`: `--outcome`, `--model`, `--since`, `--until`, `--min-turns`.
+- **New file:** `scripts/run-query.js` (single file, ~600 lines, 13 functions exported as a library for testing).
+- **Parses both collapse formats:** the interactive CLI's `Collapse fired: TYPE / Trigger turn: N / Conditions: ...` and the artifact-generator's `Collapse fired as **TYPE** on turn N`. Permissive parser handles both because the orchestrator's review workflow touches both.
+- **`pattern` command** is the orchestrator's primary review tool (per `docs/03-orchestrator-role.md` Activity 4). Surfaces: outcome distribution, advisor usage rate, failure-pattern distribution, average |delta| per axis, top 10 most-cited wiki entries, and a Phase 5 ship-criterion check on collapse-mode balance.
+- **`diff` command** supports grammar refinement (Activity 2): two runs side-by-side, with timestamps, model, outcome, turns, collapse type, collapse turn, final state per axis.
+- **Verified:**
+  - `/tmp/hermes-verify-4b.sh` — 10 checks pass (parsing of 2 collapse formats, 4 filter dimensions, 5 sections of pattern output, diff output, empty-dir handling, wiki audit)
+  - Real fixture with 3 runs: pattern command surfaces all sections, including the Phase 5 collapse-mode check
+- **Filed:** `wiki/prototypes/2026-06-29-phase-4b-run-query.md` documents the probe per Principle 4.5.
+- **Phase 4 ship criterion advanced:** "Run logs are persisted for every session and are queryable" — ✓ (4b).
+- **Next:** Cycle 4c — pattern review (refines the `pattern` and `diff` commands against the orchestrator-role doc's review criteria).
