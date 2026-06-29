@@ -81,6 +81,7 @@ The Polycrisis wiki is grounded in the Metaviews archive (`../metaviews-website/
 - [2026-06-28 — Phase 2d end-to-end](prototypes/2026-06-28-phase-2d-end-to-end.md) — Full real-LLM session completed (9 turns, no-collapse). 400-line run log + 270-line artifact generated. Interpretive chain traces player words → corpus retrieval → model interpretation → state delta → narrative.
 - [2026-06-28 — Phase 2 complete](prototypes/2026-06-28-phase-2-complete.md) — Phase 2 wrap-up: all 5 cycles landed, all ship criteria verified, simulation engine operational, artifact generated. Phase 3 starting.
 - [2026-06-28 — Phase 3a interactive CLI](prototypes/2026-06-28-phase-3a-interactive.md) — Interactive CLI works end-to-end. State visible, crisis presented, literacy/easy mode choice, comedic interlude during LLM wait, system interpretation revealed. 13-turn scripted run triggered legitimacy collapse.
+- [2026-06-28 — Phase 3b refinement](prototypes/2026-06-28-phase-3b-refinement.md) — Played through with 4 archetypes (structural, symbolic, mixed, speedrun). Real findings: JSON parse failures crash mid-game (fixed with 3-tier retry); no continuity between turns (fixed with "RECENT" subsection); structural players can still collapse; advisor easy-mode produces substantive trajectories.
 
 ## Auto-generated artifacts (not in catalog)
 

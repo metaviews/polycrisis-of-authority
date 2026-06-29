@@ -118,7 +118,7 @@ function retrieveContext(crisis, playerMove, limit = 6) {
   return readSelectedPages(selected, WIKI_DIR);
 }
 
-async function interpret({ crisis, state, playerMove, turnHistory = [], model = process.env.OPENROUTER_MODEL }) {
+async function interpret({ crisis, state, playerMove, turnHistory = [], model = process.env.OPENROUTER_MODEL, maxAttempts = 3 }) {
   loadEnv(ROOT_DIR);
 
   const retrievedPages = retrieveContext(crisis, playerMove);
@@ -128,27 +128,67 @@ async function interpret({ crisis, state, playerMove, turnHistory = [], model = 
 
   const client = createClient({ title: 'Polycrisis Grammar', temperature: 0.2 });
 
-  const messages = [
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: userPrompt },
-  ];
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ];
 
-  const response = await client.complete(messages, { temp: 0.2 });
+    let response;
+    try {
+      response = await client.complete(messages, { temp: 0.2 });
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxAttempts) continue;
+      throw new Error(`Grammar call failed after ${maxAttempts} attempts: ${err.message}`);
+    }
 
-  // Parse the JSON response
-  let parsed;
-  try {
-    // The model may wrap in markdown code blocks; strip those
-    const jsonText = response.replace(/^```json\s*|\s*```\s*$/g, '').trim();
-    parsed = JSON.parse(jsonText);
-  } catch (err) {
-    throw new Error(`Grammar output was not valid JSON: ${response.slice(0, 200)}`);
+    // Parse the JSON response — try multiple strategies
+    let parsed = null;
+    let parseError = null;
+
+    try {
+      // Strategy 1: direct parse
+      parsed = JSON.parse(response.trim());
+    } catch (e1) {
+      try {
+        // Strategy 2: strip markdown code fences
+        const jsonText = response
+          .replace(/^```(?:json)?\s*/i, '')
+          .replace(/\s*```\s*$/i, '')
+          .trim();
+        parsed = JSON.parse(jsonText);
+      } catch (e2) {
+        try {
+          // Strategy 3: extract first JSON object from response
+          const match = response.match(/\{[\s\S]*\}/);
+          if (match) parsed = JSON.parse(match[0]);
+        } catch (e3) {
+          parseError = e3;
+        }
+      }
+    }
+
+    if (parsed) {
+      try {
+        validate(parsed);
+        return parsed;
+      } catch (validationError) {
+        lastError = validationError;
+        if (attempt < maxAttempts) continue;
+        throw validationError;
+      }
+    }
+
+    lastError = parseError || new Error('Could not parse JSON from response');
+    if (attempt < maxAttempts) {
+      // Retry — could improve by adding a "respond with valid JSON only" hint
+      continue;
+    }
   }
 
-  // Validate the structure
-  validate(parsed);
-
-  return parsed;
+  throw new Error(`Grammar output could not be parsed after ${maxAttempts} attempts: ${lastError?.message || 'unknown error'}`);
 }
 
 function validate(output) {

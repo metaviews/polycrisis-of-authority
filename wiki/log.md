@@ -168,3 +168,18 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Next:** Cycle 3b — experience refinement based on real player trials; tighten display, curate interludes, refine advisor flow.
 
 ---
+
+## 2026-06-28 — Phase 3b: Experience refinement
+
+- **Action:** Played through the simulation with 4 player archetypes (structural, symbolic, mixed, speedrun). Surfaced 2 real refinements based on actual observation.
+- **Refinement 1 — JSON parse failures:** The speedrun player crashed mid-game at turn 2 with truncated JSON. Fixed by adding 3-tier JSON parsing with retry (max 3 attempts): direct parse → strip markdown code fences → regex extract → retry. Speedrun now completes 10 turns without crashing.
+- **Refinement 2 — Turn continuity:** Added "RECENT — Turn N" subsection before each turn's state block. Shows previous crisis title, player's move (truncated), system's gloss (truncated), and state delta applied. Gives the player a narrative thread across turns.
+- **Real findings from 4-archetype test:**
+  - Structural player: legitimacy 65→30, elite 60→27, narrative 55→21 (collapsed). Structural engagement slows collapse but doesn't prevent narrative drift.
+  - Symbolic player: legitimacy 65→40, elite 60→21 (collapsed), narrative 55→19 (collapsed). Press-conference language erodes elite alignment fastest.
+  - Mixed player: legitimacy 65→29, elite 60→28, narrative 55→17 (collapsed). Partial structural engagement helps legitimacy but doesn't prevent narrative collapse.
+  - Speedrun player (advisor easy-mode): legitimacy 65→50, elite 60→34, narrative 55→46. Best trajectory — advisor responses, even within describe-not-recommend constraint, were substantive enough to be partial structural moves.
+- **Filed:** `wiki/prototypes/2026-06-28-phase-3b-refinement.md` documents the probe per Principle 4.5.
+- **Next:** Cycle 3c — artifact distribution (URL hosting, Markdown rendering, shareable format).
+
+---

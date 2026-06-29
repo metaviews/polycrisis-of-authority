@@ -103,6 +103,25 @@ function displayState(state, label = 'CURRENT STATE') {
   console.log(formatStateBlock(state));
 }
 
+function displayPreviousTurnSummary(turn) {
+  if (!turn) return;
+  console.log(subsection(`RECENT — Turn ${turn.turn}`));
+  console.log(`  Crisis: ${turn.crisis.title}`);
+  console.log(`  Move: ${turn.playerMove.split('\n')[0].slice(0, 70)}${turn.playerMove.length > 70 ? '...' : ''}`);
+  console.log(`  Heard: ${turn.grammarOutput.interpretive_gloss.slice(0, 120)}${turn.grammarOutput.interpretive_gloss.length > 120 ? '...' : ''}`);
+  // Show the delta that was applied
+  const deltas = [];
+  for (const [axis, value] of Object.entries(turn.grammarOutput.state_delta)) {
+    if (value !== 0) {
+      const sign = value > 0 ? '+' : '';
+      deltas.push(`${axis.replace('_', ' ')}: ${sign}${value}`);
+    }
+  }
+  if (deltas.length > 0) {
+    console.log(`  State Δ applied: ${deltas.join(', ')}`);
+  }
+}
+
 function displayCrisis(crisis, turn) {
   console.log(section(`TURN ${turn}`));
   console.log(`  Crisis:   ${crisis.title}`);
@@ -190,7 +209,11 @@ async function runInteractive({ maxTurns = 14, model = process.env.OPENROUTER_MO
       const crisis = selectCrisis({ state, turn, usedIds: usedCrisisIds });
       usedCrisisIds.push(crisis.id);
 
-      // 2. Display state + crisis
+      // 2. Display previous turn summary (if any), state, then crisis
+      // The "previousState" for the delta display is the state at the END
+      // of the previous turn. For turn 1, there's no previous state, so
+      // pass null to suppress the delta display.
+      displayPreviousTurnSummary(turns.length > 0 ? turns[turns.length - 1] : null);
       displayState(state, `STATE BEFORE TURN ${turn}`);
       displayCrisis(crisis, turn);
 
