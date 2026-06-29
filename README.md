@@ -4,7 +4,7 @@ A simulation game where you begin already in power and must govern through a con
 
 ## Project status
 
-**Phase 3 complete. Phase 4 starting.** The simulation engine is operational, the interactive CLI shows the visible-signal layer (deliberately unreliable — the literacy device), and every run produces a shareable 8-section artifact in both markdown and self-contained HTML (with FNV-1a content hash for verification). Next phase: operator tooling (wiki ingestion, run-log aggregation, pattern review).
+**Phase 4 complete. Phase 5 starting.** The simulation engine is operational, the interactive CLI shows the visible-signal layer (deliberately unreliable — the literacy device), and every run produces a shareable 8-section artifact in both markdown and self-contained HTML (with FNV-1a content hash for verification). The operator tooling is complete: wiki ingestion (`scripts/wiki-ingest.js`), run-log queryability (`scripts/run-query.js`), pattern review with `review-notes` and `grammar-refine` commands, and model-version log (`scripts/model-log.js`). The handoff protocol (`docs/12-handoff-protocol.md`) describes what a new orchestrator does in the first week. Next phase: first-run validation (20-30 external players with orchestrator observation).
 
 The project is being built deliberately, not assembled quickly. The wiki, the grammar, the state model, the crisis anatomy, and the shareable artifact are being specified against the curated Metaviews corpus as ground truth, with the LLM as a documented and swappable component of the system.
 

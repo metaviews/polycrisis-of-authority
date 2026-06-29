@@ -278,3 +278,51 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Filed:** `wiki/prototypes/2026-06-29-phase-4d-model-log.md` documents the probe per Principle 4.5.
 - **Phase 4 build order complete:** wiki ingest (4a), wiki audit (Phase 1), run log format (Phase 2/4b), pattern review (4c), model-version log (4d). All 5 roadmap items are now landed.
 - **Next:** Cycle 4e — handoff protocol.
+
+## 2026-06-29 — Phase 4e: handoff protocol
+
+- **Action:** Authored the handoff protocol that ties Phase 4's technical tooling to a process a new orchestrator can follow. Phase 4 ship-criterion 1 ("A new orchestrator can pick up the role and run the wiki audit and pattern review without additional guidance") is now testable.
+- **New file:** `docs/12-handoff-protocol.md` (v1.0.0, ~11KB). Structured around 5 questions: what to read first, what to test, what to verify, what to do in the first week, how to know the handoff is done. 8 self-check questions with mechanically-testable answers.
+- **Updated files:**
+  - `docs/03-orchestrator-role.md` — succession section points to the handoff protocol
+  - `README.md` — "Project status" reflects Phase 4 complete
+  - `wiki/index.md` — footer reflects Phase 4 complete
+- **Verified:**
+  - `/tmp/hermes-verify-4e.sh` — 8 checks pass (doc exists, all 5 sections present, all 8 self-check questions are grounded in project docs, succession section references the handoff, README + wiki index reflect Phase 4 complete, all 4 main tooling surfaces referenced, 4a-4d verifications still pass, wiki audit clean)
+- **Phase 4 complete.** All 3 ship criteria green:
+  - "A new orchestrator can pick up the role" — ✓ (4e)
+  - "A wiki-ingest cycle produces a draft proposal set" — ✓ (4a)
+  - "Run logs are persisted and queryable" — ✓ (4b)
+- **Filed:** `wiki/prototypes/2026-06-29-phase-4e-handoff-protocol.md` documents the probe per Principle 4.5.
+- **Next:** Phase 5 — first-run validation. Not a build phase; an observation phase. 20-30 external players with orchestrator observation, assessing the case-study claim against observed behavior.
+
+## 2026-06-29 — Phase 4e: handoff protocol
+
+- **Action:** Authored the handoff protocol that ties Phase 4's technical tooling to a process a new orchestrator can follow. Phase 4 ship-criterion 1 ("A new orchestrator can pick up the role and run the wiki audit and pattern review without additional guidance") is now testable.
+- **New file:** `docs/12-handoff-protocol.md` (v1.0.0, ~11KB). Structured around 5 questions: what to read first, what to test, what to verify, what to do in the first week, how to know the handoff is done. 8 self-check questions with mechanically-testable answers.
+- **Updated files:**
+  - `docs/03-orchestrator-role.md` — succession section points to the handoff protocol
+  - `README.md` — "Project status" reflects Phase 4 complete
+  - `wiki/index.md` — footer reflects Phase 4 complete
+- **Verified:**
+  - `/tmp/hermes-verify-4e.sh` — 8 checks pass (doc exists, all 5 sections present, all 8 self-check questions are grounded in project docs, succession section references the handoff, README + wiki index reflect Phase 4 complete, all 4 main tooling surfaces referenced, 4a-4d verifications still pass, wiki audit clean)
+- **Phase 4 complete.** All 3 ship criteria green:
+  - "A new orchestrator can pick up the role" — done (4e)
+  - "A wiki-ingest cycle produces a draft proposal set" — done (4a)
+  - "Run logs are persisted and queryable" — done (4b)
+- **Filed:** `wiki/prototypes/2026-06-29-phase-4e-handoff-protocol.md` documents the probe per Principle 4.5.
+- **Next:** Phase 5 — first-run validation. Not a build phase; an observation phase. 20-30 external players with orchestrator observation, assessing the case-study claim against observed behavior.
+
+## 2026-06-29 — Phase 4e: handoff protocol
+
+- **Action:** Authored the handoff protocol that ties Phase 4 technical tooling to a process a new orchestrator can follow. Phase 4 ship-criterion 1 (new orchestrator can pick up the role and run the wiki audit and pattern review without additional guidance) is now testable.
+- **New file:** `docs/12-handoff-protocol.md` (v1.0.0, ~11KB). Structured around 5 questions: what to read first, what to test, what to verify, what to do in the first week, how to know the handoff is done. 8 self-check questions with mechanically-testable answers.
+- **Updated files:**
+  - `docs/03-orchestrator-role.md` — succession section points to the handoff protocol
+  - `README.md` — "Project status" reflects Phase 4 complete
+  - `wiki/index.md` — footer reflects Phase 4 complete
+- **Verified:**
+  - `/tmp/hermes-verify-4e.sh` — 8 checks pass (doc exists, all 5 sections present, all 8 self-check questions are grounded in project docs, succession section references the handoff, README + wiki index reflect Phase 4 complete, all 4 main tooling surfaces referenced, 4a-4d verifications still pass, wiki audit clean)
+- **Phase 4 complete.** All 3 ship criteria green.
+- **Filed:** `wiki/prototypes/2026-06-29-phase-4e-handoff-protocol.md` documents the probe per Principle 4.5.
+- **Next:** Phase 5 — first-run validation. Not a build phase; an observation phase. 20-30 external players with orchestrator observation.

@@ -136,7 +136,7 @@ The orchestrator role is ongoing. Any individual orchestrator is not. The role i
 
 **What makes handoff hard:** judgment is not transferable from log alone. A new orchestrator needs to understand *the principles* (this is why `02-design-principles.md` exists), not just the actions. They need to play the system enough to develop intuition for it. They need to read the corpus enough to know what the wiki is claiming.
 
-**MVP-0 handoff protocol:** none yet. The project is in design phase. When MVP-0 ships, the orchestrator-role doc will be revised to include a handoff checklist: what to read first, what to test, what to verify before taking responsibility for ongoing curation.
+**MVP-0 handoff protocol:** the handoff protocol is documented in `docs/12-handoff-protocol.md` (Phase 4 cycle 4e). It covers what to read first, what to test, what to verify before taking responsibility, and what to do in the first week. The orchestrator-role doc remains the source of truth for *what* the role is; the handoff protocol is the operational layer for *how* a new orchestrator takes over.
 
 ## Sources for this document
 
