@@ -352,3 +352,14 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **What this cycle does NOT address:** the user's other complaint ("the text doesn't respond to the user's response") is the next cycle (5c), which will replace the static crisis deck with an LLM-driven world generator that produces each turn's prose in response to the player's prior move. This is a separate architectural change.
 - **Filed:** `wiki/prototypes/2026-06-29-phase-5b-collapse-loop.md` documents the cycle.
 - **Next:** 5c (LLM-driven world generator for response problem), then play the new loop across archetypes to test the litmus test.
+
+## 2026-06-29 — Phase 5b.5: multi-line input + status spinner
+
+- **Action:** Two gaps from the 5b walkthrough addressed. (1) Submit-signal ambiguity: the loop used a single-line prompt for the first line of the move, then looped for more lines — the player couldn't tell when the move was sent. (2) No status during the LLM wait: removing the previous comedic interlude left a 10-30s gap with nothing on screen.
+- **Multi-line input by default** (`reader.promptMove(headerQuestion)`): the player types their move, presses enter to start a new line, presses enter on a blank line to submit. Either single-line or multi-line moves are valid. The cursor stays at `  > ` between lines so the player knows the move is being built.
+- **Status spinner** (`withSpinner(reader, message, fn)`): pendulum animation, dot oscillates through 5 trailing positions (frame width fixed so the message is never broken). 800ms per tick. TTY mode uses ESC[1A + CR to update in place; piped mode falls back to a single static line. Spinner is cleared when the function returns and a blank line is added so the next turn's prose appears cleanly below.
+- **The advisor shortcut** (`a` on the first line) still works. After the advisor is consulted, the move goes through `promptMove` (multi-line) like normal.
+- **Verified:** `/tmp/hermes-verify-5b.5.sh` — 8 checks pass (promptMove + withSpinner exported, piped-mode fallback, TTY mode uses ESC[1A, end-to-end probe with mocked grammar shows the spinner line, old promptMultiLine is gone, 5a + 5b verifications still pass, 4a-4e verifications still pass, wiki audit clean: 65 indexed, 0 schema, 0 broken links).
+- **Two additional end-to-end probes** (in the test): multi-line move `We will convene a 60-day review\nwith civil society observers and industry representatives.` is captured verbatim with newlines preserved; single-line move `We will convene a 60-day review.` is captured cleanly with no double-newline artifact.
+- **Filed:** `wiki/prototypes/2026-06-29-phase-5b.5-input-spinner.md` documents the cycle.
+- **Next:** 5c (LLM-driven world generator for the response problem), or play the new loop first to test the litmus test.

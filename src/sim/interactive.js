@@ -62,22 +62,32 @@ function createReader() {
     });
     return {
       isTTY: true,
+      // Single-line prompt. Use for short yes/no questions only.
       prompt: (question) => new Promise((resolve) => {
         rl.question(question, (answer) => resolve(answer));
       }),
-      promptMultiLine: (headerQuestion) => new Promise((resolve) => {
+      // Multi-line move prompt. The headerQuestion is printed once.
+      // The player types their move; a blank line ends the move.
+      // Each non-empty line is preceded by "  > " in the terminal.
+      promptMove: (headerQuestion) => new Promise((resolve) => {
+        process.stdout.write(headerQuestion + '\n');
         const lines = [];
-        rl.question(headerQuestion + '\n', () => {});
+        process.stdout.write('  > ');
         const onLine = (line) => {
           if (line === '') {
             rl.removeListener('line', onLine);
             resolve(lines.join('\n').trim());
           } else {
             lines.push(line);
+            process.stdout.write('  > ');
           }
         };
         rl.on('line', onLine);
       }),
+      // Print a single line (no readline prompt involvement).
+      print: (text) => {
+        process.stdout.write(text);
+      },
       close: () => rl.close(),
     };
   }
@@ -90,7 +100,8 @@ function createReader() {
       const line = lines[cursor++] || '';
       return line;
     },
-    promptMultiLine: async () => {
+    promptMove: async (headerQuestion) => {
+      process.stdout.write(headerQuestion + '\n');
       const collected = [];
       while (cursor < lines.length) {
         const line = lines[cursor++];
@@ -99,8 +110,64 @@ function createReader() {
       }
       return collected.join('\n').trim();
     },
+    print: (text) => {
+      process.stdout.write(text);
+    },
     close: () => {},
   };
+}
+
+// Run an async function while showing a pendulum spinner in the terminal.
+// The spinner appears on a fresh line below whatever the player just typed,
+// rotates while the function runs, and is cleared when the function returns.
+// In piped (non-TTY) mode, prints a single static line instead of rotating.
+async function withSpinner(reader, message, fn) {
+  if (!reader.isTTY) {
+    reader.print(`  ${message}\n`);
+    return await fn();
+  }
+  // TTY mode: pendulum spinner
+  // The message is followed by 5 dot-position spaces; the dot oscillates
+  // through them. The dot is NEVER placed inside the message text — the
+  // message is always intact.
+  const dotPositions = [0, 1, 2, 3, 4, 3, 2, 1];
+  const prefix = '  ' + message + ' ';
+  const totalLen = prefix.length + 4; // 4 dot-position spaces
+  const renderFrame = (dotPos) => {
+    let line = prefix;
+    // Pad with spaces to total length
+    while (line.length < totalLen) line += ' ';
+    // Place the dot at position (totalLen - 4 + dotPos). The dot is always
+    // in the trailing space region, never overlapping the message.
+    const dotIdx = totalLen - 4 + dotPos;
+    return line.slice(0, dotIdx) + '·' + line.slice(dotIdx + 1);
+  };
+  let frameIdx = 0;
+  let stopped = false;
+  // Print the first frame immediately
+  reader.print(renderFrame(dotPositions[0]) + '\n');
+  // The cursor is now at the start of the line BELOW the spinner.
+  // To update, we need to go up one line, rewrite, and go back down.
+  // Use \x1b[1A to move up, \r to go to col 0, then write the new frame.
+  const tick = async () => {
+    while (!stopped) {
+      await new Promise(r => setTimeout(r, 800));
+      if (stopped) break;
+      frameIdx = (frameIdx + 1) % dotPositions.length;
+      // Move up to the spinner line, rewrite, move back down
+      reader.print('\x1b[1A\r' + renderFrame(dotPositions[frameIdx]) + '\n');
+    }
+  };
+  const tickPromise = tick();
+  try {
+    return await fn();
+  } finally {
+    stopped = true;
+    await tickPromise;
+    // Clear the spinner line: move up, clear with spaces, move down
+    const blank = ' '.repeat(totalLen);
+    reader.print('\x1b[1A\r' + blank + '\r\n');
+  }
 }
 
 // Render a single turn's prose (Situation / Pressure / Decision point).
@@ -176,16 +243,19 @@ async function runInteractive({ maxTurns = 14, model = process.env.OPENROUTER_MO
       console.log(`\n  ─── Turn ${turn} ───\n`);
       console.log(renderCrisisProse(crisis));
 
-      // 3. Get the player's move. They can type `a` to consult an advisor first.
+      // 3. Get the player's move. The prompt is multi-line: the player
+      // types their move and ends with a blank line. As a shortcut,
+      // typing `a` on the first line enters advisor mode instead.
       let playerMove = null;
       let advisorUsed = null;
       let advisorFullResponse = null;
 
-      // Single-line prompt for `a` (advisor) or move text
-      const line = await reader.prompt('  Your move (or `a` for an advisor): ');
+      // First, ask the player whether they want to consult an advisor
+      // (single line — this is a shortcut, not the move itself).
+      const firstLine = await reader.prompt('  Your move (or `a` for an advisor): ');
 
-      if (line.trim().toLowerCase() === 'a') {
-        // Ask which advisor
+      if (firstLine.trim().toLowerCase() === 'a') {
+        // Advisor flow
         console.log('');
         console.log('  Which advisor? (1-5)');
         for (let i = 0; i < ADVISOR_VOICES.length; i += 1) {
@@ -208,27 +278,34 @@ async function runInteractive({ maxTurns = 14, model = process.env.OPENROUTER_MO
           console.log('  Advisor (' + advisorUsed + '):');
           console.log('  ' + wrap(shortAdvisor, 68).split('\n').map(l => '  ' + l).join('\n').trim());
           console.log('');
-          // Now ask for the move
-          playerMove = await reader.promptMultiLine('  Your move:\n  > ');
+          // Now ask for the multi-line move
+          playerMove = await reader.promptMove('  Your move:');
         } else {
           console.log('  (invalid choice; writing your own move)');
-          playerMove = await reader.promptMultiLine('  Your move:\n  > ');
+          playerMove = await reader.promptMove('  Your move:');
         }
       } else {
-        // Player typed a single line as their move (short form)
-        if (line.trim() !== '') {
-          // Continue reading lines until blank line, treating the first line
-          // as part of the multi-line input
-          const collected = [line];
-          while (true) {
-            const next = await reader.prompt('');
-            if (next === '') break;
-            collected.push(next);
+        // The first line of the move is the line the player already typed.
+        // Continue reading more lines until a blank line, treating the
+        // first line as part of the multi-line input.
+        const collected = [firstLine];
+        let more = true;
+        while (more) {
+          // Check if the first line itself was blank (player just hit enter).
+          // In that case, the move is empty and we don't read more.
+          if (collected.length === 1 && firstLine === '') {
+            more = false;
+          } else {
+            // Read the next line directly via stdin
+            const line = await reader.prompt('  > ');
+            if (line === '') {
+              more = false;
+            } else {
+              collected.push(line);
+            }
           }
-          playerMove = collected.join('\n').trim();
-        } else {
-          playerMove = await reader.promptMultiLine('  Your move:\n  > ');
         }
+        playerMove = collected.filter(l => l !== '').join('\n').trim();
       }
 
       if (!playerMove) {
@@ -236,18 +313,20 @@ async function runInteractive({ maxTurns = 14, model = process.env.OPENROUTER_MO
         playerMove = '[silence]';
       }
 
-      // 4. Real grammar call (async)
+      // 4. Real grammar call (async) with a status spinner while waiting
       const turnHistory = turns.slice(-5).map((t) => ({
         crisis: t.crisis,
         playerMove: t.playerMove,
         grammarOutput: t.grammarOutput,
       }));
-      const grammarOutput = await interpret({
-        crisis,
-        state: { ...state },
-        playerMove,
-        turnHistory,
-      });
+      const grammarOutput = await withSpinner(reader, 'Interpreting your move', () =>
+        interpret({
+          crisis,
+          state: { ...state },
+          playerMove,
+          turnHistory,
+        }),
+      );
 
       // 5. Apply delta
       const stateAfter = applyDelta(state, grammarOutput.state_delta);
@@ -401,7 +480,7 @@ function buildRunLog(result) {
   return lines.join('\n');
 }
 
-module.exports = { runInteractive };
+module.exports = { runInteractive, withSpinner, createReader };
 
 if (require.main === module) {
   runInteractive().catch((err) => {
