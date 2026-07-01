@@ -3,7 +3,7 @@ title: "Compute concentration announcement (crisis 3)"
 description: "UAE announces $80B sovereign AI compute fund, shifting global compute balance. Triggers compute and capability escape failure pattern."
 type: mechanic
 subtype: crisis
-version: "0.1.0"
+version: "0.2.0"
 last_updated: 2026-06-28
 failure_pattern:
   - "compute-capability-escape"
@@ -24,7 +24,17 @@ trigger_kind: "capability-driven"
 
 The UAE has announced a sovereign AI compute fund backed by oil revenue, sized at $80 billion over five years. The fund will provide compute access to international AI labs at below-market rates. Analysts project this will shift the global compute balance significantly within 18 months.
 
-### Actors and positions
+### Situation
+
+The UAE has announced a sovereign AI compute fund backed by oil revenue, sized at $80 billion over five years.
+
+### Pressure
+
+The fund will provide compute access to international AI labs at below-market rates. Analysts project this will shift the global compute balance significantly within 18 months.
+
+### Decision point
+
+How does the regime respond to a state-backed compute concentration that could reshape global AI capability?Actors and positions
 
 - **UAE sovereign wealth fund** — Framing the fund as a contribution to global AI safety through expanded compute access.
 - **US hyperscalers** — Concerned about competitive pressure; private lobbying for export controls.

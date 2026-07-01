@@ -3,7 +3,7 @@ title: "Content moderation incident (crisis 2)"
 description: "A viral post documents an AI content moderation system producing biased outputs against dialectal English varieties. Triggers upstream-embedding failure pattern."
 type: mechanic
 subtype: crisis
-version: "0.1.0"
+version: "0.2.0"
 last_updated: 2026-06-28
 failure_pattern:
   - "upstream-embedding"
@@ -24,7 +24,17 @@ trigger_kind: "incident-driven"
 
 A widely-shared social media post documents an AI content moderation system producing systematically biased outputs against dialectal English varieties. The post goes viral with screenshots. Civil society organizations are calling for an immediate investigation. The company operating the system has issued a public statement but has not committed to release training data.
 
-### Actors and positions
+### Situation
+
+A widely-shared social media post documents an AI content moderation system producing systematically biased outputs against dialectal English varieties. The post goes viral with screenshots.
+
+### Pressure
+
+Civil society organizations are calling for an immediate investigation. The company operating the system has issued a public statement but has not committed to release training data.
+
+### Decision point
+
+What does the regime do about a viral, documented bias incident that the responsible party is stonewalling?Actors and positions
 
 - **Civil society organizations** — Calling for transparency about training data and evaluation.
 - **The operating company** — Defending the system as meeting all published standards; resisting training-data disclosure as a trade secret.

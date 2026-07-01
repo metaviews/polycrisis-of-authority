@@ -3,7 +3,7 @@ title: "Elite defection sequence (crisis 6)"
 description: "Three senior safety researchers leave major AI labs citing deployment concerns. Coverage frames it as a credibility crisis for internal safety functions. Triggers legitimacy-erosion cascade failure pattern."
 type: mechanic
 subtype: crisis
-version: "0.1.0"
+version: "0.2.0"
 last_updated: 2026-06-28
 failure_pattern:
   - "legitimacy-erosion"
@@ -24,7 +24,17 @@ trigger_kind: "elite-driven"
 
 Three senior safety researchers have left major AI labs in the past month, citing concerns about deployment decisions. Their departures have been characterized in press coverage as "a credibility crisis for the labs' internal safety functions." Industry analysts are noting that the labs' public safety commitments are no longer matched by their internal organization.
 
-### Actors and positions
+### Situation
+
+Three senior safety researchers have left major AI labs in the past month, citing concerns about deployment decisions.
+
+### Pressure
+
+Their departures have been characterized in press coverage as "a credibility crisis for the labs' internal safety functions." Industry analysts are noting that the labs' public safety commitments are no longer matched by their internal organization.
+
+### Decision point
+
+How does the regime respond when the people who knew the labs best are walking out the door?Actors and positions
 
 - **Departing researchers** — Public statements focus on internal disagreements; private concerns about deployment pressure.
 - **AI labs** — Publicly defending their safety functions; privately concerned about recruitment.

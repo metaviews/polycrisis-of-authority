@@ -3,18 +3,29 @@
 /**
  * interactive.js
  *
- * The interactive CLI for Polycrisis of Authority. Cycle 3a.
+ * The interactive CLI for Polycrisis of Authority. Cycle 5b.
  *
- * This is the player experience: turn-based, terminal-native, real-time.
- * Each turn:
- *   1. State vector is shown.
- *   2. Crisis is presented.
- *   3. Player chooses: write policy OR consult an advisor (easy mode).
- *   4. Player provides the move.
- *   5. Comedic interlude displays during LLM wait.
- *   6. System interpretation reveals (gloss, narrative, delta).
- *   7. State updates.
- *   8. Move to next turn or collapse.
+ * The play loop, as redesigned in Phase 5b:
+ *
+ *   Turn N
+ *     Situation:  <1-2 sentences; what is happening>
+ *     Pressure:   <1-2 sentences; what is at stake>
+ *     Decision point: <1 sentence; what the regime must answer>
+ *     (or)
+ *     [player types `a` to consult an advisor before writing their move]
+ *     Your move:
+ *     > <player types policy, blank line ends>
+ *
+ *     [LLM call]
+ *
+ *   Turn N+1
+ *     <repeat>
+ *
+ * Everything else (visible-signal layer, system-interpretation block,
+ * state-delta display, previous-turn summary, comedic interlude) has
+ * been moved to the artifact and the run log. The play loop is
+ * prose-only: situation, pressure, decision point, the player's
+ * response, the next turn's situation.
  *
  * At the end, the 8-section artifact is generated.
  */
@@ -28,9 +39,8 @@ const { interpret } = require('./grammar');
 const { consult, ADVISOR_VOICES } = require('./advisors');
 const { generateArtifact } = require('./artifact-generator');
 const { renderArtifactHtml } = require('./artifact-render');
-const { selectInterlude, formatInterlude } = require('./interlude');
 const { formatStateBlock, formatStateCompact, formatDeltaBlock, formatVisibleSignalsDisplay, computeVisibleSignals } = require('./state-display');
-const { section, subsection, indent, wrap, numberedChoice, pause } = require('./cli-format');
+const { wrap } = require('./cli-format');
 
 const ROOT_DIR = path.join(__dirname, '..', '..');
 
@@ -42,10 +52,8 @@ function generateRunId() {
 }
 
 // Input reader that works for both TTY and piped stdin.
-// Uses readline for TTY, line-by-line for piped.
 function createReader() {
   const isTTY = process.stdin.isTTY === true;
-
   if (isTTY) {
     const readline = require('readline');
     const rl = readline.createInterface({
@@ -60,7 +68,6 @@ function createReader() {
       promptMultiLine: (headerQuestion) => new Promise((resolve) => {
         const lines = [];
         rl.question(headerQuestion + '\n', () => {});
-        // Switch to line-by-line mode for multi-line
         const onLine = (line) => {
           if (line === '') {
             rl.removeListener('line', onLine);
@@ -71,14 +78,11 @@ function createReader() {
         };
         rl.on('line', onLine);
       }),
-      close: () => reader.close(),
+      close: () => rl.close(),
     };
   }
-
-  // Piped mode: read stdin line-by-line synchronously
   const lines = fs.readFileSync(0, 'utf8').split('\n');
   let cursor = 0;
-
   return {
     isTTY: false,
     prompt: async (question) => {
@@ -99,109 +103,56 @@ function createReader() {
   };
 }
 
-function displayState(state, label = 'CURRENT STATE', { hiddenHistory = [], turn = 1, stateBefore = null, signals = null } = {}) {
-  console.log(section(label));
-  const sig = signals || computeVisibleSignals({
-    hiddenState: state,
-    hiddenHistory,
-    turn,
-    stateBefore: stateBefore || state,
+// Render a single turn's prose (Situation / Pressure / Decision point).
+// Returns the formatted string ready for stdout.
+function renderCrisisProse(crisis) {
+  const lines = [];
+  lines.push(`  ${crisis.title}`);
+  lines.push('');
+  lines.push('  Situation:');
+  lines.push('  ' + wrap(crisis.situation, 68).split('\n').map(l => '  ' + l).join('\n').trim());
+  lines.push('');
+  lines.push('  Pressure:');
+  lines.push('  ' + wrap(crisis.pressure, 68).split('\n').map(l => '  ' + l).join('\n').trim());
+  lines.push('');
+  lines.push('  Decision point:');
+  lines.push('  ' + wrap(crisis.decision_point, 68).split('\n').map(l => '  ' + l).join('\n').trim());
+  lines.push('');
+  return lines.join('\n');
+}
+
+// Get a short advisor paragraph (~50 words) for in-loop consults.
+// The full corpus-grounded version is still generated and recorded
+// in the run log + artifact; the loop version is a quick briefing.
+async function consultAdvisorShort(voice, crisis, state) {
+  const response = await consult({
+    voice,
+    crisis,
+    state: { ...state },
+    playerMove: '[player is consulting before writing their move]',
   });
-  console.log(formatVisibleSignalsDisplay({
-    hiddenState: state,
-    hiddenHistory,
-    turn,
-    stateBefore: stateBefore || state,
-  }));
-  return sig;
-}
-
-function displayPreviousTurnSummary(turn) {
-  if (!turn) return;
-  console.log(subsection(`RECENT — Turn ${turn.turn}`));
-  console.log(`  Crisis: ${turn.crisis.title}`);
-  console.log(`  Move: ${turn.playerMove.split('\n')[0].slice(0, 70)}${turn.playerMove.length > 70 ? '...' : ''}`);
-  console.log(`  Heard: ${turn.grammarOutput.interpretive_gloss.slice(0, 120)}${turn.grammarOutput.interpretive_gloss.length > 120 ? '...' : ''}`);
-  // Show the delta that was applied
-  const deltas = [];
-  for (const [axis, value] of Object.entries(turn.grammarOutput.state_delta)) {
-    if (value !== 0) {
-      const sign = value > 0 ? '+' : '';
-      deltas.push(`${axis.replace('_', ' ')}: ${sign}${value}`);
-    }
+  // Trim to roughly 50 words for the loop. The full response is still
+  // recorded in the run log via the advisorUsed field.
+  const words = response.split(/\s+/);
+  if (words.length > 60) {
+    return words.slice(0, 60).join(' ') + '...';
   }
-  if (deltas.length > 0) {
-    console.log(`  State Δ applied: ${deltas.join(', ')}`);
-  }
-}
-
-function displayCrisis(crisis, turn) {
-  console.log(section(`TURN ${turn}`));
-  console.log(`  Crisis:   ${crisis.title}`);
-  console.log(`  Pattern:  ${crisis.failure_pattern}`);
-  console.log(`  Trigger:  ${crisis.trigger_kind}`);
-  console.log('');
-  console.log(indent(wrap(crisis.trigger, 68), 2));
-}
-
-function displayAdvisorResponse(voice, response) {
-  console.log(subsection(`Advisor: ${voice}`));
-  console.log(indent(wrap(response, 68), 2));
-}
-
-function displayInterlude(signal) {
-  const formatted = formatInterlude(signal);
-  if (formatted) {
-    console.log(`\n  · ${formatted}\n`);
-  }
-}
-
-function displaySystemResponse(grammarOutput, stateAfter) {
-  console.log(section('SYSTEM INTERPRETATION'));
-
-  console.log(subsection('The system heard'));
-  console.log(indent(wrap(grammarOutput.interpretive_gloss, 68), 2));
-
-  console.log(subsection('What happens next'));
-  console.log(indent(wrap(grammarOutput.narrative_move, 68), 2));
-
-  console.log(subsection('State changes'));
-  console.log(formatDeltaBlock(grammarOutput.state_delta));
-
-  console.log(subsection('After this turn'));
-  console.log(formatStateBlock(stateAfter));
-
-  console.log(subsection('Sources the model drew on'));
-  for (const path of grammarOutput.grounding_trace) {
-    console.log(`  · ${path}`);
-  }
-
-  console.log(subsection('Confidence'));
-  console.log(`  ${grammarOutput.confidence}`);
-}
-
-function displayCollapse(collapse, turn) {
-  console.log(section('COLLAPSE'));
-  console.log(`  Collapse fired: ${collapse.type}`);
-  console.log(`  Trigger turn:   ${turn}`);
-  console.log('');
-  console.log('  Conditions:');
-  for (const [k, v] of Object.entries(collapse.conditions)) {
-    console.log(`    ${k}: ${v}`);
-  }
+  return response;
 }
 
 async function runInteractive({ maxTurns = 14, model = process.env.OPENROUTER_MODEL || 'minimax/minimax-m3' } = {}) {
   const runId = generateRunId();
   const startedAt = new Date().toISOString();
 
-  console.log(section('POLYCRISIS OF AUTHORITY'));
+  console.log('\n  POLYCRISIS OF AUTHORITY');
   console.log('  Simulation begins.');
-  console.log(`  Model: ${model}`);
   console.log(`  Run ID: ${runId}`);
+  console.log(`  Model: ${model}`);
   console.log('');
-  console.log('  You are in power. Crisis will come.');
-  console.log('  Type your policy in response, or consult an advisor for a quick take.');
+  console.log('  You are in power. Crisis will come. Each turn:');
+  console.log('  read the situation, the pressure, and the decision point;');
+  console.log('  then write your policy. Type `a` to consult an advisor first.');
+  console.log('  End your move with a blank line. The session ends at collapse, or after ' + maxTurns + ' turns.');
   console.log('');
 
   const reader = createReader();
@@ -209,7 +160,6 @@ async function runInteractive({ maxTurns = 14, model = process.env.OPENROUTER_MO
   let state = { ...INITIAL_STATE };
   let turn = 0;
   const usedCrisisIds = [];
-  const usedInterludeFilenames = [];
   const turns = [];
   let outcome = 'no-collapse';
   let collapse = null;
@@ -222,93 +172,71 @@ async function runInteractive({ maxTurns = 14, model = process.env.OPENROUTER_MO
       const crisis = selectCrisis({ state, turn, usedIds: usedCrisisIds });
       usedCrisisIds.push(crisis.id);
 
-      // 2. Display previous turn summary (if any), state, then crisis
-      // The "previousState" for the delta display is the state at the END
-      // of the previous turn. For turn 1, there's no previous state, so
-      // pass null to suppress the delta display.
-      displayPreviousTurnSummary(turns.length > 0 ? turns[turns.length - 1] : null);
-      // Visible signal display: shows the three named signals per axis
-      // (deliberately unreliable per Principle 3.2). The hidden value
-      // is not shown during play — that's the literacy device.
-      // History of hidden states feeds the lag-based signals. The
-      // returned signals object is stored on the turn record so the
-      // run log can carry it forward to the run-query tool (Cycle 4c).
-      const visibleSignals = displayState(state, `STATE BEFORE TURN ${turn}`, {
-        hiddenHistory: turns.map((t) => t.stateBefore),
-        turn,
-        stateBefore: state,
-      });
-      displayCrisis(crisis, turn);
+      // 2. Render the prose (Situation / Pressure / Decision point)
+      console.log(`\n  ─── Turn ${turn} ───\n`);
+      console.log(renderCrisisProse(crisis));
 
-      // 3. Player chooses: write own policy OR consult advisor
-      const choices = [
-        { key: '0', label: 'Write your own policy response (literacy mode)' },
-        ...ADVISOR_VOICES.map((voice, i) => ({
-          key: String(i + 1),
-          label: `Consult the ${voice} advisor (easy mode)`,
-        })),
-      ];
-      const choiceAnswer = await reader.prompt( numberedChoice('  Your move:', choices));
-      const choice = choiceAnswer.trim();
-
+      // 3. Get the player's move. They can type `a` to consult an advisor first.
       let playerMove = null;
       let advisorUsed = null;
+      let advisorFullResponse = null;
 
-      if (choice === '0' || choice === '') {
-        // Literacy mode: player writes
-        console.log(section('YOUR POLICY RESPONSE'));
-        console.log('  Type your response. End with a blank line when done.');
+      // Single-line prompt for `a` (advisor) or move text
+      const line = await reader.prompt('  Your move (or `a` for an advisor): ');
+
+      if (line.trim().toLowerCase() === 'a') {
+        // Ask which advisor
         console.log('');
-        playerMove = await reader.promptMultiLine('  > ');
-        if (!playerMove) {
-          console.log('  (Empty response — using a brief acknowledgment.)');
-          playerMove = '[silence]';
+        console.log('  Which advisor? (1-5)');
+        for (let i = 0; i < ADVISOR_VOICES.length; i += 1) {
+          console.log(`    [${i + 1}] ${ADVISOR_VOICES[i]}`);
         }
-      } else {
-        const idx = parseInt(choice, 10) - 1;
+        const advisorChoice = (await reader.prompt('  > ')).trim();
+        const idx = parseInt(advisorChoice, 10) - 1;
         if (idx >= 0 && idx < ADVISOR_VOICES.length) {
-          // Easy mode: advisor consulted
           advisorUsed = ADVISOR_VOICES[idx];
-          console.log(section(`CONSULTING ADVISOR: ${advisorUsed.toUpperCase()}`));
-          console.log('  The system is reaching the advisor...');
-
-          const interludeBeforeAdvisor = selectInterlude({ turnNumber: turn, usedFilenames: usedInterludeFilenames });
-          displayInterlude(interludeBeforeAdvisor);
-          if (interludeBeforeAdvisor) usedInterludeFilenames.push(interludeBeforeAdvisor.filename);
-
-          const advisorResponse = await consult({
+          // Get the short version for the loop
+          const shortAdvisor = await consultAdvisorShort(advisorUsed, crisis, state);
+          // Get the full version for the run log
+          advisorFullResponse = await consult({
             voice: advisorUsed,
             crisis,
             state: { ...state },
-            playerMove: playerMove || '[no player move yet — advisor speaking first]',
+            playerMove: '[player is consulting before writing their move]',
           });
-          displayAdvisorResponse(advisorUsed, advisorResponse);
-
-          // Easy mode: the advisor's response IS the move
-          // (player can commit or rewrite)
           console.log('');
-          const commit = await reader.prompt('  Use this advisor take as your policy move? [y/n, default y] > ');
-          if (commit.trim() === 'n') {
-            console.log('  (Rewriting your own...)');
-            playerMove = await reader.promptMultiLine('  > ');
-          } else {
-            playerMove = `[${advisorUsed} advisor]: ${advisorResponse}`;
-          }
+          console.log('  Advisor (' + advisorUsed + '):');
+          console.log('  ' + wrap(shortAdvisor, 68).split('\n').map(l => '  ' + l).join('\n').trim());
+          console.log('');
+          // Now ask for the move
+          playerMove = await reader.promptMultiLine('  Your move:\n  > ');
         } else {
-          console.log('  (Invalid choice — defaulting to your own policy.)');
-          playerMove = await reader.promptMultiLine('  > ');
+          console.log('  (invalid choice; writing your own move)');
+          playerMove = await reader.promptMultiLine('  Your move:\n  > ');
+        }
+      } else {
+        // Player typed a single line as their move (short form)
+        if (line.trim() !== '') {
+          // Continue reading lines until blank line, treating the first line
+          // as part of the multi-line input
+          const collected = [line];
+          while (true) {
+            const next = await reader.prompt('');
+            if (next === '') break;
+            collected.push(next);
+          }
+          playerMove = collected.join('\n').trim();
+        } else {
+          playerMove = await reader.promptMultiLine('  Your move:\n  > ');
         }
       }
 
-      // 4. Comedic interlude during LLM wait
-      const interlude = selectInterlude({ turnNumber: turn, usedFilenames: usedInterludeFilenames });
-      if (interlude) usedInterludeFilenames.push(interlude.filename);
+      if (!playerMove) {
+        console.log('  (empty response — using a brief acknowledgment.)');
+        playerMove = '[silence]';
+      }
 
-      console.log(section('SYSTEM RESPONDING'));
-      console.log('  The system is interpreting your move...');
-      displayInterlude(interlude);
-
-      // 5. Real grammar call (async)
+      // 4. Real grammar call (async)
       const turnHistory = turns.slice(-5).map((t) => ({
         crisis: t.crisis,
         playerMove: t.playerMove,
@@ -321,16 +249,16 @@ async function runInteractive({ maxTurns = 14, model = process.env.OPENROUTER_MO
         turnHistory,
       });
 
-      // 6. Apply delta
+      // 5. Apply delta
       const stateAfter = applyDelta(state, grammarOutput.state_delta);
 
-      // 7. Check collapse
+      // 6. Check collapse
       collapse = checkCollapse(stateAfter, turn);
       if (collapse) {
         outcome = collapse.type;
       }
 
-      // 8. Record turn
+      // 7. Record turn (with full advisor response if applicable)
       turns.push({
         turn,
         crisis,
@@ -340,32 +268,24 @@ async function runInteractive({ maxTurns = 14, model = process.env.OPENROUTER_MO
         stateAfter,
         collapse,
         advisorUsed,
-        visibleSignals,
+        advisorFullResponse,
       });
 
       state = stateAfter;
 
-      // 9. Display system response
-      displaySystemResponse(grammarOutput, stateAfter);
-
       if (collapse) {
-        displayCollapse(collapse, turn);
-        break;
-      }
-
-      // Continue
-      const continueAnswer = await reader.prompt( '\n  Press Enter to continue (or "q" to quit)... ');
-      if (continueAnswer.trim() === 'q') {
-        outcome = 'player-quit';
+        console.log('');
+        console.log('  ─── Collapse ───');
+        console.log(`  ${collapse.type} on turn ${turn}.`);
         break;
       }
     }
 
     if (!collapse && outcome === 'no-collapse') {
-      console.log(section('RUN COMPLETE'));
+      console.log('');
+      console.log('  ─── Run complete ───');
       console.log('  You reached the end without collapse.');
     }
-
   } finally {
     reader.close();
   }
@@ -384,7 +304,8 @@ async function runInteractive({ maxTurns = 14, model = process.env.OPENROUTER_MO
     finalState: state,
   };
 
-  console.log(section('GENERATING ARTIFACT'));
+  console.log('');
+  console.log('  ─── Generating artifact ───');
   const artifact = generateArtifact(result);
   const runLog = buildRunLog(result);
   const outputDir = path.join(ROOT_DIR, 'runs');
@@ -393,7 +314,6 @@ async function runInteractive({ maxTurns = 14, model = process.env.OPENROUTER_MO
   const artifactPath = path.join(outputDir, `${runId}-artifact.md`);
   fs.writeFileSync(runLogPath, runLog);
   fs.writeFileSync(artifactPath, artifact);
-  // Self-contained HTML for distribution per docs/09-artifact-template.md
   const htmlPath = path.join(outputDir, `${runId}-artifact.html`);
   const html = renderArtifactHtml(artifact, {
     runId,
@@ -410,7 +330,9 @@ async function runInteractive({ maxTurns = 14, model = process.env.OPENROUTER_MO
 }
 
 function buildRunLog(result) {
-  // Reuse the run log format from run-async.js
+  // The run log retains the full record (everything that happened during play)
+  // so the artifact generator and run-query tool can reconstruct the trajectory.
+  // The player just doesn't see all this during the play loop.
   const lines = [];
   lines.push('---');
   lines.push(`run_id: "${result.runId}"`);
@@ -421,20 +343,28 @@ function buildRunLog(result) {
   lines.push(`turns_completed: ${result.turnsCompleted}`);
   lines.push('---');
   lines.push('');
-  lines.push('# Run log (interactive)');
+  lines.push('# Run log');
   lines.push('');
   for (const turn of result.turns) {
     lines.push(`## Turn ${turn.turn}`);
     lines.push('');
-    lines.push(`### Crisis`);
+    lines.push('### Crisis');
     lines.push('');
     lines.push(`**${turn.crisis.title}** (failure pattern: ${turn.crisis.failure_pattern})`);
     lines.push('');
-    lines.push(turn.crisis.trigger);
+    lines.push('**Situation:** ' + turn.crisis.situation);
+    lines.push('');
+    lines.push('**Pressure:** ' + turn.crisis.pressure);
+    lines.push('');
+    lines.push('**Decision point:** ' + turn.crisis.decision_point);
     lines.push('');
     if (turn.advisorUsed) {
-      lines.push(`### Advisor consulted: ${turn.advisorUsed}`);
+      lines.push('### Advisor consulted: ' + turn.advisorUsed);
       lines.push('');
+      if (turn.advisorFullResponse) {
+        lines.push(turn.advisorFullResponse);
+        lines.push('');
+      }
     }
     lines.push('### Player move');
     lines.push('');
@@ -465,26 +395,6 @@ function buildRunLog(result) {
     lines.push('');
     for (const [axis, info] of Object.entries(withBands(turn.stateAfter))) {
       lines.push(`- ${axis}: ${info.value} (${info.band})`);
-    }
-    // Optional: visible-signal block (per Cycle 4c). When the run captured
-    // the visible-signal layer (which is the default for the interactive
-    // CLI as of Cycle 3c), record what the player saw. This is the
-    // observable surface of the literacy device; the artifact's collapse
-    // reveal surfaces the visible-vs-hidden gap; the run log carries the
-    // raw signal data so run-query.js can aggregate it.
-    if (turn.visibleSignals) {
-      lines.push('');
-      lines.push('### Visible signals');
-      lines.push('');
-      for (const [axis, ax] of Object.entries(turn.visibleSignals)) {
-        const signalSummary = (ax.signals || [])
-          .map((s) => {
-            if (s.value === null) return `${s.name} [${s.band}]`;
-            return `${s.name} [${s.value}/${(s.band || '?').slice(0, 4)}]`;
-          })
-          .join('  ·  ');
-        lines.push(`- ${axis}: ${signalSummary}  (discrepancy ${ax.discrepancy || 0} pts)`);
-      }
     }
     lines.push('');
   }

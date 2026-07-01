@@ -3,7 +3,7 @@ title: "Memetic warfare / foreign disinformant (crisis 8)"
 description: "Coordinated inauthentic behavior attributed to a state actor reframes the AI policy debate. The narrative frame gains traction faster than fact-checkers can respond. Triggers memetic and narrative capture failure pattern."
 type: mechanic
 subtype: crisis
-version: "0.1.0"
+version: "0.2.0"
 last_updated: 2026-06-28
 failure_pattern:
   - "memetic-narrative-capture"
@@ -24,7 +24,17 @@ trigger_kind: "incident-driven"
 
 Coordinated inauthentic behavior has been detected across major platforms, framing the current AI policy debate around a narrative that conflates several distinct policy questions. The campaign has been attributed to a state actor. The narrative frame has gained traction in public discourse faster than fact-checkers can respond.
 
-### Actors and positions
+### Situation
+
+Coordinated inauthentic behavior has been detected across major platforms, framing the current AI policy debate around a narrative that conflates several distinct policy questions.
+
+### Pressure
+
+The campaign has been attributed to a state actor. The narrative frame has gained traction in public discourse faster than fact-checkers can respond.
+
+### Decision point
+
+What does the regime do when the conversation is being shaped faster than the facts can catch up?Actors and positions
 
 - **State actor (named or plausibly-identified)** — Denies responsibility; the campaign's framing serves their interests.
 - **The platforms** — Publicly committed to enforcement; the volume exceeds current detection capacity.

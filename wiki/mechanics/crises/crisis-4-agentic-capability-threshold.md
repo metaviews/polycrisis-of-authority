@@ -3,7 +3,7 @@ title: "Model agentic capability threshold (crisis 4)"
 description: "OpenAI publishes paper demonstrating agentic capability at human-level reliability for multi-step economic tasks. Triggers compute and capability escape failure pattern."
 type: mechanic
 subtype: crisis
-version: "0.1.0"
+version: "0.2.0"
 last_updated: 2026-06-28
 failure_pattern:
   - "compute-capability-escape"
@@ -24,7 +24,17 @@ trigger_kind: "capability-driven"
 
 OpenAI has published a paper demonstrating an agentic capability threshold: a model that can complete a multi-step economic task (procurement, contracting, payment) with human-level reliability. The paper does not announce a product release; it documents the capability. Industry analysts are calling this "the agentic moment."
 
-### Actors and positions
+### Situation
+
+OpenAI has published a paper demonstrating an agentic capability threshold: a model that can complete a multi-step economic task (procurement, contracting, payment) with human-level reliability.
+
+### Pressure
+
+The paper does not announce a product release; it documents the capability. Industry analysts are calling this "the agentic moment."
+
+### Decision point
+
+What does the regime do when a documented capability threshold has been crossed, before any deployment?Actors and positions
 
 - **OpenAI** — Framing the paper as research transparency; argues publication enables pre-emptive regulatory engagement.
 - **Civil society organizations** — Calling for a pause on deployment pending regulatory frameworks for agentic AI.

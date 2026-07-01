@@ -1,9 +1,9 @@
 ---
 title: "Crisis anatomy — how crises are structured and surfaced"
-description: "Each crisis has trigger text, actors with positions, focal axes, policy surface, and a failure-pattern tag. The MVP-0 deck has 8 crises covering 4 failure patterns (upstream embedding, compute/capability escape, legitimacy-erosion cascade, memetic/narrative capture)."
+description: "Each crisis has trigger text, three-part play-loop prose (Situation, Pressure, Decision point), actors with positions, focal axes, policy surface, and a failure-pattern tag. The MVP-0 deck has 8 crises covering 4 failure patterns (upstream embedding, compute/capability escape, legitimacy-erosion cascade, memetic/narrative capture)."
 type: mechanic
-version: "0.1.0"
-last_updated: 2026-06-28
+version: "0.2.0"
+last_updated: "2026-06-29"
 grounded_in:
   - "concepts/algorithmic-authority.md"
   - "concepts/ai-arms-race.md"
@@ -24,12 +24,17 @@ The simulation surfaces crises to the player in playable form. Each crisis confo
 - `grounded_in` (corpus entries cited)
 - `trigger_kind` (capability-driven, legitimacy-driven, elite-driven, incident-driven)
 
-**Body — four required sections:**
+**Body — six required sections:**
 
-1. **Trigger.** Specific and dated event text — what the player sees at the top of the crisis surface.
-2. **Actors.** Who is involved, what their positions are, what they have publicly said or done.
-3. **Focal axes.** Which state axes this crisis foregrounds and why.
-4. **Policy surface.** What kinds of policy moves the grammar should be listening for — the policy space the player operates in.
+1. **Trigger.** Specific and dated event text — the full prose of the crisis (used in artifact generation and audit material).
+2. **Situation.** 1-2 sentences. What is happening in the world, stated concretely. This is what the player sees first in the play loop.
+3. **Pressure.** 1-2 sentences. What is at stake, what could go wrong, what forces are closing in. This is what the player sees second.
+4. **Decision point.** 1 sentence. The question the regime must answer. This is what the player sees third, followed by their move prompt.
+5. **Actors.** Who is involved, what their positions are, what they have publicly said or done.
+6. **Focal axes.** Which state axes this crisis foregrounds and why.
+7. **Policy surface.** What kinds of policy moves the grammar should be listening for — the policy space the player operates in.
+
+The play loop surfaces only Situation, Pressure, and Decision point. The other sections are audit material that lives in the artifact and the run log, not the loop. (See the Phase 5b doc pass on the play-loop redesign.)
 
 ### Four failure patterns
 

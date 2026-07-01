@@ -131,6 +131,27 @@ function formatCrisisLog(runResult) {
     lines.push('');
     lines.push(`*Failure pattern: ${turn.crisis.failure_pattern}*`);
     lines.push('');
+    // The crisis surfaced to the player as Situation / Pressure / Decision point.
+    // The artifact retains the canonical play-loop prose for the audit record.
+    if (turn.crisis.situation) {
+      lines.push('**Situation.**');
+      lines.push(turn.crisis.situation);
+      lines.push('');
+    }
+    if (turn.crisis.pressure) {
+      lines.push('**Pressure.**');
+      lines.push(turn.crisis.pressure);
+      lines.push('');
+    }
+    if (turn.crisis.decision_point) {
+      lines.push('**Decision point.**');
+      lines.push(turn.crisis.decision_point);
+      lines.push('');
+    }
+    if (turn.advisorUsed) {
+      lines.push(`*Advisor consulted: ${turn.advisorUsed}*`);
+      lines.push('');
+    }
     lines.push('**Player move (verbatim):**');
     lines.push(`> ${turn.playerMove}`);
     lines.push('');

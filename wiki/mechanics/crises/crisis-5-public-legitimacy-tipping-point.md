@@ -3,7 +3,7 @@ title: "Public legitimacy tipping point (crisis 5)"
 description: "Polling shows public trust in AI governance dropped 12 points in three months, concentrated among previously moderate voters. Triggers legitimacy-erosion cascade failure pattern."
 type: mechanic
 subtype: crisis
-version: "0.1.0"
+version: "0.2.0"
 last_updated: 2026-06-28
 failure_pattern:
   - "legitimacy-erosion"
@@ -24,7 +24,17 @@ trigger_kind: "legitimacy-driven"
 
 Polling this week shows that public trust in AI governance has dropped 12 points in three months. The drop is concentrated among voters who previously expressed moderate confidence. The shift correlates with a series of small incidents that received sustained press coverage. The press is framing the moment as "the legitimacy crisis arriving."
 
-### Actors and positions
+### Situation
+
+Polling this week shows that public trust in AI governance has dropped 12 points in three months. The drop is concentrated among voters who previously expressed moderate confidence.
+
+### Pressure
+
+The shift correlates with a series of small incidents that received sustained press coverage. The press is framing the moment as "the legitimacy crisis arriving."
+
+### Decision point
+
+What does the regime do when public trust is shifting in a way that compounds with every incident?Actors and positions
 
 - **Public (represented through polling)** — Trust has eroded; specific concerns are diffuse.
 - **Press** — Framing the moment as a tipping point; coverage is itself a force.

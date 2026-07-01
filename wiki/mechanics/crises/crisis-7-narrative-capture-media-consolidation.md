@@ -3,7 +3,7 @@ title: "Narrative capture via media consolidation (crisis 7)"
 description: "A single corporate entity completes a major media acquisition; coverage of AI policy debates shifts toward industry-favored framing. Triggers memetic and narrative capture failure pattern."
 type: mechanic
 subtype: crisis
-version: "0.1.0"
+version: "0.2.0"
 last_updated: 2026-06-28
 failure_pattern:
   - "memetic-narrative-capture"
@@ -24,7 +24,17 @@ trigger_kind: "elite-driven"
 
 A major media acquisition has been completed: a single corporate entity now controls a substantial share of the AI-policy-adjacent press. Editorial independence commitments have been made, but coverage in the past week has shifted noticeably toward framing AI policy debates in terms the industry's preferred narrative.
 
-### Actors and positions
+### Situation
+
+A major media acquisition has been completed: a single corporate entity now controls a substantial share of the AI-policy-adjacent press.
+
+### Pressure
+
+Editorial independence commitments have been made, but coverage in the past week has shifted noticeably toward framing AI policy debates in terms the industry's preferred narrative.
+
+### Decision point
+
+How does the regime act when the press is shifting underneath it without admitting it's shifting?Actors and positions
 
 - **The acquiring corporation** — Publicly committed to editorial independence; privately the coverage shift is consistent.
 - **Affected journalists and outlets** — Some have left; some are continuing under new ownership.

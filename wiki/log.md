@@ -340,3 +340,15 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
   - Wiki audit: 63 indexed, 0 schema, 0 broken links
 - **Filed:** `wiki/prototypes/2026-06-29-phase-5a-doc-pass-edutainment.md` documents the probe per Principle 4.5.
 - **Next:** Play the game. Run the four player archetypes (structural / symbolic / mixed / speedrun) per the handoff protocol's day-2 test list. Read the artifacts. Check the litmus test.
+
+## 2026-06-29 — Phase 5b: collapse the loop to crisis → response
+
+- **Action:** Noise-fix cycle. Per the walkthrough feedback ("fundamentally the interface should just be the description given to the user, and then their response"), the play loop is now Situation / Pressure / Decision point / your move — nothing else. The visible-signal layer, system-interpretation block, delta display, previous-turn summary, comedic interlude, and advisor menu have all been removed from the loop. The full record still lives in the run log + artifact.
+- **Crisis files** (all 8): added `### Situation`, `### Pressure`, `### Decision point` sections. Existing trigger content split into the three parts. Bumped to v0.2.0. The crisis-anatomy doc was updated to document the new schema.
+- **`src/sim/crisis-generator.js`** rewritten to load the new deck (situation, pressure, decision_point per crisis).
+- **`src/sim/interactive.js`** rewritten with the minimal play loop. The advisor function is still accessible via `a` (single-character, no menu), with a short advisor paragraph (≤60 words) followed by the move prompt. The full advisor response is still generated and recorded in the run log + artifact.
+- **`src/sim/artifact-generator.js`** updated to surface Situation / Pressure / Decision point + advisor consult in the artifact's crisis log section.
+- **Verified:** `/tmp/hermes-verify-5b.sh` — 9 checks pass (crisis files have new sections, v0.2.0, crisis-anatomy doc, crisis-generator loads new fields, interactive.js has no old per-turn printers, artifact generator handles new shape, 5a + 4a-4e verifications still pass, wiki audit clean: 64 indexed, 0 schema, 0 broken links).
+- **What this cycle does NOT address:** the user's other complaint ("the text doesn't respond to the user's response") is the next cycle (5c), which will replace the static crisis deck with an LLM-driven world generator that produces each turn's prose in response to the player's prior move. This is a separate architectural change.
+- **Filed:** `wiki/prototypes/2026-06-29-phase-5b-collapse-loop.md` documents the cycle.
+- **Next:** 5c (LLM-driven world generator for response problem), then play the new loop across archetypes to test the litmus test.

@@ -3,7 +3,7 @@ title: "Frontier lab capability release (crisis 1)"
 description: "Anthropic releases Claude Mythos with agentic capabilities exceeding the regulator's evaluation framework. Triggers upstream-embedding failure pattern."
 type: mechanic
 subtype: crisis
-version: "0.1.0"
+version: "0.2.0"
 last_updated: 2026-06-28
 failure_pattern:
   - "upstream-embedding"
@@ -24,7 +24,17 @@ trigger_kind: "capability-driven"
 
 Anthropic has released Claude Mythos, a new frontier model with agentic capabilities exceeding the regulator's current evaluation framework. The release was announced with a 14-day notice; the regulator's safety team cannot complete a meaningful evaluation in that window. Industry analysts are calling the release "a regulatory fait accompli."
 
-### Actors and positions
+### Situation
+
+Anthropic has released Claude Mythos, a new frontier model with agentic capabilities exceeding the regulator's current evaluation framework.
+
+### Pressure
+
+The release was announced with a 14-day notice; the regulator's safety team cannot complete a meaningful evaluation in that window. Industry analysts are calling the release "a regulatory fait accompli."
+
+### Decision point
+
+How does the regime respond to a capability release that outpaces its evaluation capacity?Actors and positions
 
 - **Anthropic** — Defended the release as safety-tested and competitive-necessity. Argues that delay would cede ground to less careful actors.
 - **Frontier-model regulator (in-player)** — Under pressure to demonstrate that the regime has authority over frontier capabilities.
