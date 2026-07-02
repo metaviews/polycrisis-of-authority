@@ -3,43 +3,38 @@ title: "Public legitimacy tipping point (crisis 5)"
 description: "Polling shows public trust in AI governance dropped 12 points in three months, concentrated among previously moderate voters. Triggers legitimacy-erosion cascade failure pattern."
 type: mechanic
 subtype: crisis
-version: "0.2.0"
-last_updated: 2026-06-28
+version: "0.3.0"
+last_updated: "2026-06-29"
 failure_pattern:
   - "legitimacy-erosion"
 focal_axes:
   - "legitimacy"
   - "narrative_coherence"
   - "elite_alignment"
+actor_pool:
+  - "US polling"
+  - "UK polling"
+  - "EU polling"
+  - "Canadian polling"
+  - "Australian polling"
 grounded_in:
   - "concepts/cognitive-authority.md"
   - "concepts/future-of-authority.md"
   - "signals/2026-05-08-algorithmic-authority-epistemic-fracture.md"
 trigger_kind: "legitimacy-driven"
+seed_fragment: "Public polling shows trust in AI governance has dropped sharply in the past quarter."
 ---
 
 ## Crisis 5 — Public legitimacy tipping point
+
+### Seed fragment
+
+Public polling shows trust in AI governance has dropped sharply in the past quarter.
 
 ### Trigger
 
 Polling this week shows that public trust in AI governance has dropped 12 points in three months. The drop is concentrated among voters who previously expressed moderate confidence. The shift correlates with a series of small incidents that received sustained press coverage. The press is framing the moment as "the legitimacy crisis arriving."
 
-### Situation
-
-Polling this week shows that public trust in AI governance has dropped 12 points in three months. The drop is concentrated among voters who previously expressed moderate confidence.
-
-### Pressure
-
-The shift correlates with a series of small incidents that received sustained press coverage. The press is framing the moment as "the legitimacy crisis arriving."
-
-### Decision point
-
-What does the regime do when public trust is shifting in a way that compounds with every incident?Actors and positions
-
-- **Public (represented through polling)** — Trust has eroded; specific concerns are diffuse.
-- **Press** — Framing the moment as a tipping point; coverage is itself a force.
-- **Civil society organizations** — Some see this as an opportunity to push for stronger regulation; others worry about overreach in response.
-- **Industry** — Concerned about regulatory overreaction; private messaging emphasizes measured response.
 
 ### Focal axes
 

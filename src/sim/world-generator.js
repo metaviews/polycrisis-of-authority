@@ -69,6 +69,12 @@ function buildSystemPrompt() {
   // crisis trigger + the grammar's narrative_move) into one LLM-produced
   // stream. The player sees only the new narrative surface; the artifact
   // captures both.
+  //
+  // REGISTER (cycle 5d): the prose must read like a smart briefing from a
+  // friend who knows the material. Short sentences, concrete actors doing
+  // concrete things, active voice, accessible language. NOT policy-brief
+  // legalese. The player should be able to read each turn in 20 seconds
+  // without re-reading.
   return `You are the world of the Polycrisis of Authority simulation. The player is governing a regime that responds to AI-policy crises. Each turn, the player writes policy in their own words; you produce what happens in the world as a result.
 
 CRITICAL RULES:
@@ -80,6 +86,14 @@ CRITICAL RULES:
 6. grounding_trace must include at least one path from "Retrieved corpus context". This preserves the case-study claim (model behavior is observable).
 7. Do not recommend actions to the player; you are the world they govern, not their advisor.
 
+REGISTER (READ THIS CAREFULLY — cycle 5d):
+- Voice: a smart briefing from someone who knows the material and respects the reader. Slightly wry when the situation calls for it. NOT jokey.
+- Short sentences. Aim for 8-15 words each. Break long subordinate clauses into separate sentences.
+- Concrete actors doing concrete things. Use the actor from the seed prompt when applicable. "Anthropic released a new model today" beats "Anthropic has released a new frontier model with capabilities exceeding".
+- Active voice. "The safety team can't evaluate it in time" beats "the regulator's safety team cannot complete a meaningful evaluation".
+- Accessible language. "Can do multi-step tasks on its own" beats "agentic capabilities". Translate jargon into plain English.
+- The prose is for a player who is curious and alert, slightly pressed for time, and wants to understand the situation without re-reading.
+
 OUTPUT SCHEMA:
 {
   "state_delta": {
@@ -90,10 +104,10 @@ OUTPUT SCHEMA:
     "narrative_coherence": <integer -20 to +20>,
     "capability_frontier": <integer -20 to +20>
   },
-  "narrative": "<2-4 sentences. What happens in the world as a response to the player's prior move.>",
-  "situation": "<1-2 sentences. What the player sees first in the next turn.>",
-  "pressure": "<1-2 sentences. What is at stake.>",
-  "decision_point": "<1 sentence. The question the regime must answer next.>",
+  "narrative": "<2-4 sentences, accessible register. What happens in the world as a response to the player's prior move.>",
+  "situation": "<1-2 sentences, accessible register. What the player sees first in the next turn.>",
+  "pressure": "<1-2 sentences, accessible register. What is at stake.>",
+  "decision_point": "<1 sentence, accessible register. The question the regime must answer next.>",
   "grounding_trace": ["<wiki path>", ...],
   "confidence": "low" | "medium" | "high"
 }
@@ -119,7 +133,7 @@ NARRATIVE QUALITY:
 - If the player took no action or a weak action, the narrative can show consequences accumulating.`;
 }
 
-function buildUserPrompt({ priorCrisis, state, playerMove, turnHistory, retrievedPages }) {
+function buildUserPrompt({ priorCrisis, state, playerMove, turnHistory, retrievedPages, seedFragment, actor }) {
   const stateVector = Object.entries(state)
     .map(([k, v]) => `  ${k}: ${v}`)
     .join('\n');
@@ -129,7 +143,7 @@ function buildUserPrompt({ priorCrisis, state, playerMove, turnHistory, retrieve
   const historySection = turnHistory.length === 0
     ? '(this is the first turn; no prior history)'
     : turnHistory.map((turn, i) =>
-        `  Turn ${i + 1}: Crisis "${turn.crisis.title}". Player wrote: "${turn.playerMove.slice(0, 300)}${turn.playerMove.length > 300 ? '...' : ''}". The world responded: "${turn.worldNarrative.slice(0, 300)}${turn.worldNarrative.length > 300 ? '...' : ''}"`
+        `  Turn ${i + 1}: Seed "${turn.crisis.title}". Player wrote: "${turn.playerMove.slice(0, 300)}${turn.playerMove.length > 300 ? '...' : ''}". The world responded: "${turn.worldNarrative.slice(0, 300)}${turn.worldNarrative.length > 300 ? '...' : ''}"`
       ).join('\n');
 
   const corpusSection = retrievedPages.length === 0
@@ -138,16 +152,28 @@ function buildUserPrompt({ priorCrisis, state, playerMove, turnHistory, retrieve
         `## Source ${i + 1}: ${page.title}\nPath: ${page.href}\nContent: ${(page.content || '').slice(0, 1500)}`
       ).join('\n\n---\n\n');
 
-  return `PRIOR CRISIS (the player just responded to this):
+  // Cycle 5d: the prior crisis is now a seed + actor, not full prose.
+  // The LLM uses the seed fragment as the prompt anchor and the actor as
+  // the named entity for the situation.
+  const seedSection = seedFragment
+    ? `SEED (the theme for the next crisis — generate the situation/pressure/decision_point from this):
+
+Fragment: ${seedFragment}
+${actor ? `Actor for this seed: ${actor}` : ''}
+
+The current state, retrieved corpus context, and recent history should fill in the specifics.`
+    : `PRIOR CRISIS (the player just responded to this):
 
 Title: ${priorCrisis.title}
 Situation: ${priorCrisis.situation}
-Pressure: ${priorCrisis.pressure}
+Pressure: ${priorCrisis.pressure}`;
+
+  return `${seedSection}
 
 CURRENT STATE VECTOR (after the prior turn's delta applied):
 ${stateVector}
 
-PLAYER'S POLICY MOVE (in response to the prior crisis):
+PLAYER'S POLICY MOVE (in response to the prior seed):
 ${playerMove}
 
 RECENT TURN HISTORY:
@@ -156,7 +182,7 @@ ${historySection}
 RETRIEVED CORPUS CONTEXT:
 ${corpusSection}
 
-Produce the JSON output now. The narrative MUST respond to the player's move; situation/pressure/decision_point MUST together form the next turn's prose the player will see.`;
+Produce the JSON output now. The narrative MUST respond to the player's move; situation/pressure/decision_point MUST together form the next turn's prose the player will see. Use the accessible register (short sentences, concrete actors, active voice, plain English — see system prompt).`;
 }
 
 function validate(output) {
@@ -198,16 +224,24 @@ function validate(output) {
 // return the world generator's structured output. Falls back to throwing
 // after 3 attempts so the caller can decide what to do (interactive.js
 // catches and uses the static crisis deck for that turn).
-async function generateWorld({ priorCrisis, state, playerMove, turnHistory = [], model = process.env.OPENROUTER_MODEL, maxAttempts = 3 } = {}) {
-  if (!priorCrisis || !state || !playerMove) {
-    throw new Error('generateWorld requires priorCrisis, state, and playerMove');
+//
+// Cycle 5d: now accepts seedFragment and actor. The priorCrisis is still
+// accepted for backward compatibility with the fallback path, but when
+// seedFragment is provided, the world generator uses it as the prompt
+// anchor instead of the prior crisis's situation/pressure fields.
+async function generateWorld({ priorCrisis, state, playerMove, turnHistory = [], seedFragment = null, actor = null, model = process.env.OPENROUTER_MODEL, maxAttempts = 3 } = {}) {
+  if (!state || !playerMove) {
+    throw new Error('generateWorld requires state and playerMove');
+  }
+  if (!priorCrisis && !seedFragment) {
+    throw new Error('generateWorld requires either priorCrisis or seedFragment');
   }
 
   loadEnv(ROOT_DIR);
 
-  const retrievedPages = retrieveContext(priorCrisis, playerMove, state);
+  const retrievedPages = retrieveContext(priorCrisis || { situation: seedFragment, pressure: '' }, playerMove, state);
   const systemPrompt = buildSystemPrompt();
-  const userPrompt = buildUserPrompt({ priorCrisis, state, playerMove, turnHistory, retrievedPages });
+  const userPrompt = buildUserPrompt({ priorCrisis, state, playerMove, turnHistory, retrievedPages, seedFragment, actor });
 
   const client = createClient({ title: 'Polycrisis World Generator', temperature: 0.4 });
 

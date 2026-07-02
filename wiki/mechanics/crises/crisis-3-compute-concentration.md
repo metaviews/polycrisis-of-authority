@@ -3,43 +3,38 @@ title: "Compute concentration announcement (crisis 3)"
 description: "UAE announces $80B sovereign AI compute fund, shifting global compute balance. Triggers compute and capability escape failure pattern."
 type: mechanic
 subtype: crisis
-version: "0.2.0"
-last_updated: 2026-06-28
+version: "0.3.0"
+last_updated: "2026-06-29"
 failure_pattern:
   - "compute-capability-escape"
 focal_axes:
   - "fiscal_slack"
   - "capability_frontier"
   - "elite_alignment"
+actor_pool:
+  - "UAE"
+  - "Saudi Arabia"
+  - "Singapore"
+  - "EU sovereign cloud"
+  - "US federal program"
 grounded_in:
   - "concepts/ai-arms-race.md"
   - "entities/openai-anthropic.md"
   - "signals/2026-05-21-spacex-data-center-ai-oligopoly.md"
 trigger_kind: "capability-driven"
+seed_fragment: "A foreign government has announced a sovereign AI compute fund backed by state resources."
 ---
 
 ## Crisis 3 — Compute concentration announcement
+
+### Seed fragment
+
+A foreign government has announced a sovereign AI compute fund backed by state resources.
 
 ### Trigger
 
 The UAE has announced a sovereign AI compute fund backed by oil revenue, sized at $80 billion over five years. The fund will provide compute access to international AI labs at below-market rates. Analysts project this will shift the global compute balance significantly within 18 months.
 
-### Situation
-
-The UAE has announced a sovereign AI compute fund backed by oil revenue, sized at $80 billion over five years.
-
-### Pressure
-
-The fund will provide compute access to international AI labs at below-market rates. Analysts project this will shift the global compute balance significantly within 18 months.
-
-### Decision point
-
-How does the regime respond to a state-backed compute concentration that could reshape global AI capability?Actors and positions
-
-- **UAE sovereign wealth fund** — Framing the fund as a contribution to global AI safety through expanded compute access.
-- **US hyperscalers** — Concerned about competitive pressure; private lobbying for export controls.
-- **International AI labs** — Some view this as compute relief; others as geopolitical entanglement.
-- **Allied regulators** — Asking how compute access for foreign labs affects domestic regulatory authority.
 
 ### Focal axes
 

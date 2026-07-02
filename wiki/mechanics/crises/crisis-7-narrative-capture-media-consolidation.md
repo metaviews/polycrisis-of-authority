@@ -3,43 +3,38 @@ title: "Narrative capture via media consolidation (crisis 7)"
 description: "A single corporate entity completes a major media acquisition; coverage of AI policy debates shifts toward industry-favored framing. Triggers memetic and narrative capture failure pattern."
 type: mechanic
 subtype: crisis
-version: "0.2.0"
-last_updated: 2026-06-28
+version: "0.3.0"
+last_updated: "2026-06-29"
 failure_pattern:
   - "memetic-narrative-capture"
 focal_axes:
   - "narrative_coherence"
   - "elite_alignment"
   - "legitimacy"
+actor_pool:
+  - "Vox Media"
+  - "Semafor"
+  - "Axios"
+  - "TechCrunch"
+  - "A Substack acquisition"
 grounded_in:
   - "concepts/memetic-warfare.md"
   - "concepts/attention-aristocracy.md"
   - "signals/2026-05-21-spacex-data-center-ai-oligopoly.md"
 trigger_kind: "elite-driven"
+seed_fragment: "A major media acquisition has shifted how AI policy debates are covered."
 ---
 
 ## Crisis 7 — Narrative capture via media consolidation
+
+### Seed fragment
+
+A major media acquisition has shifted how AI policy debates are covered.
 
 ### Trigger
 
 A major media acquisition has been completed: a single corporate entity now controls a substantial share of the AI-policy-adjacent press. Editorial independence commitments have been made, but coverage in the past week has shifted noticeably toward framing AI policy debates in terms the industry's preferred narrative.
 
-### Situation
-
-A major media acquisition has been completed: a single corporate entity now controls a substantial share of the AI-policy-adjacent press.
-
-### Pressure
-
-Editorial independence commitments have been made, but coverage in the past week has shifted noticeably toward framing AI policy debates in terms the industry's preferred narrative.
-
-### Decision point
-
-How does the regime act when the press is shifting underneath it without admitting it's shifting?Actors and positions
-
-- **The acquiring corporation** — Publicly committed to editorial independence; privately the coverage shift is consistent.
-- **Affected journalists and outlets** — Some have left; some are continuing under new ownership.
-- **Civil society** — Concerned about narrative consolidation; calling for media diversity requirements.
-- **The press (broader ecosystem)** — Coverage of the acquisition has been muted compared to past media-consolidation stories.
 
 ### Focal axes
 

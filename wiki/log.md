@@ -375,3 +375,16 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Two real end-to-end probes** (in the test, not the verification): with mocked world generator, turn 1 surfaces static crisis and turn 2 surfaces world generator's prior output (situation / pressure / decision point); with mocked world generator throwing, the static fallback runs, the run log records the fallback count + per-turn note.
 - **Filed:** `wiki/prototypes/2026-06-29-phase-5c-world-generator.md` documents the cycle.
 - **Next:** play the new loop with a real LLM. The walkthrough across archetypes (structural, symbolic, mixed, speedrun) is the test — does the prose actually feel responsive, or does the prompt need tuning?
+
+## 2026-06-29 — Phase 5d: parameterized seeds + dynamic turn count + accessible register
+
+- **Action:** Three changes set up the walkthrough. (1) Parameterized seeds replace the static crisis deck for turn 1 — 8 curated seeds with actor pools of 3-5 named entities, weighted-random selection with no-repeat within run. (2) Dynamic turn count: collapse / 5-consecutive-turn stabilization / 30-turn runaway cap. (3) Accessible register in the world generator prompt — short sentences, concrete actors, active voice, plain English.
+- **`scripts/seed-variants.js` (new):** `SEED_VARIANTS` (8 seeds with fragment + failure_pattern + focal_axes + actors), `selectSeed({state, usedIds, usedActors})` returns a weighted-random (seed, actor) pair. Baseline weight of 1.0 per seed ensures every seed has a non-zero chance even in calm states.
+- **8 crisis files updated to v0.3.0:** added `actor_pool` and `seed_fragment` to frontmatter. Removed authored `### Situation / ### Pressure / ### Decision point` (these are now LLM-generated). Added `### Seed fragment` body section. The Trigger section retained as audit material.
+- **`wiki/mechanics/crisis-anatomy.md` updated to v0.3.0:** schema documents the new frontmatter additions + Seed fragment body section. Note that situation/pressure/decision-point are now LLM-generated, not authored.
+- **`src/sim/world-generator.js`:** system prompt adds `REGISTER` section (smart briefing, short sentences, active voice, accessible language). User prompt now accepts `seedFragment` + `actor` and weaves the actor into the situation prose.
+- **`src/sim/interactive.js`:** `MAX_TURNS = 30` (was 14). `STABILIZATION_THRESHOLD = 5` consecutive turns in holding/strained → `outcome: "stabilized"`. Three end conditions: collapse, stabilization, max-turns. Turn 1 uses `selectSeed` to pick a parameterized seed. Turn 1 display shows seed fragment + deferred pressure/decision note.
+- **Cycle-5b verification updated:** `/tmp/hermes-verify-5b.sh` was checking for the v0.2.0 schema (Situation/Pressure/Decision point). Updated to match v0.3.0 schema (Seed fragment).
+- **Verified:** `/tmp/hermes-verify-5d.sh` — 12 checks pass. All prior cycle verifications (4a-4e, 5a, 5b, 5b.5, 5c) still pass. Wiki audit clean: 67 indexed, 0 schema, 0 broken links.
+- **Filed:** `wiki/prototypes/2026-06-29-phase-5d-seeds-dynamic-turns-register.md` documents the cycle.
+- **Next:** the walkthrough. Play the loop with a real LLM and test the litmus test (Principle 6): does the experience make you want to start another run?
