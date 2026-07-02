@@ -34,8 +34,9 @@ const fs = require('fs');
 const path = require('path');
 
 const { INITIAL_STATE, applyDelta, checkCollapse, withBands, bandFor } = require('./state');
-const { selectCrisis } = require('./crisis-generator');
+const { selectCrisis, CRISIS_DECK } = require('./crisis-generator');
 const { interpret } = require('./grammar');
+const { generateWorld } = require('./world-generator');
 const { consult, ADVISOR_VOICES } = require('./advisors');
 const { generateArtifact } = require('./artifact-generator');
 const { renderArtifactHtml } = require('./artifact-render');
@@ -188,6 +189,30 @@ function renderCrisisProse(crisis) {
   return lines.join('\n');
 }
 
+// Convert a world generator output (or a static crisis) into the crisis shape
+// the loop displays. For turn 1 (static crisis), this is a no-op pass-through.
+// For turns 2+, this converts the prior turn's world output into a crisis the
+// current turn displays.
+function crisisFromWorld(worldOrCrisis, fallbackTitle) {
+  // If it has all the crisis fields, it's already a crisis (turn 1 path)
+  if (worldOrCrisis.title && worldOrCrisis.situation && worldOrCrisis.pressure && worldOrCrisis.decision_point) {
+    return worldOrCrisis;
+  }
+  // Otherwise, it's a world generator output. Convert it to a crisis shape.
+  return {
+    id: `world-${worldOrCrisis.turn || 0}`,
+    title: fallbackTitle || 'Continuing crisis',
+    trigger: worldOrCrisis.narrative || '',
+    situation: worldOrCrisis.situation,
+    pressure: worldOrCrisis.pressure,
+    decision_point: worldOrCrisis.decision_point,
+    failure_pattern: worldOrCrisis.failure_pattern || 'unknown',
+    focal_axes: worldOrCrisis.focal_axes || [],
+    trigger_kind: worldOrCrisis.trigger_kind || 'unknown',
+    fromWorld: true,
+  };
+}
+
 // Get a short advisor paragraph (~50 words) for in-loop consults.
 // The full corpus-grounded version is still generated and recorded
 // in the run log + artifact; the loop version is a quick briefing.
@@ -230,14 +255,23 @@ async function runInteractive({ maxTurns = 14, model = process.env.OPENROUTER_MO
   const turns = [];
   let outcome = 'no-collapse';
   let collapse = null;
+  let priorWorld = null; // The most recent world generator output. Turn 1 has none.
+  let fallbackWarnings = 0; // Count of LLM failures that triggered fallback.
 
   try {
     while (turn < maxTurns) {
       turn += 1;
 
-      // 1. Select crisis
-      const crisis = selectCrisis({ state, turn, usedIds: usedCrisisIds });
-      usedCrisisIds.push(crisis.id);
+      // 1. Determine the current "crisis" — what the player sees at the
+      // top of this turn. For turn 1, this is a static seeded crisis. For
+      // turns 2+, this is the prior turn's world generator output.
+      let crisis;
+      if (turn === 1) {
+        crisis = selectCrisis({ state, turn, usedIds: usedCrisisIds });
+        usedCrisisIds.push(crisis.id);
+      } else {
+        crisis = crisisFromWorld(priorWorld, `Turn ${turn}`);
+      }
 
       // 2. Render the prose (Situation / Pressure / Decision point)
       console.log(`\n  ─── Turn ${turn} ───\n`);
@@ -313,23 +347,60 @@ async function runInteractive({ maxTurns = 14, model = process.env.OPENROUTER_MO
         playerMove = '[silence]';
       }
 
-      // 4. Real grammar call (async) with a status spinner while waiting
-      const turnHistory = turns.slice(-5).map((t) => ({
+      // 4. World generator call. For turn 1, the prior crisis is the static
+      // seeded one. For turns 2+, it's the prior turn's world generator
+      // output (already converted to crisis shape above).
+      const turnHistory = turns.slice(-3).map((t) => ({
         crisis: t.crisis,
         playerMove: t.playerMove,
-        grammarOutput: t.grammarOutput,
+        worldNarrative: t.world?.narrative || t.grammarOutput?.interpretive_gloss || '(no narrative)',
       }));
-      const grammarOutput = await withSpinner(reader, 'Interpreting your move', () =>
-        interpret({
-          crisis,
-          state: { ...state },
-          playerMove,
-          turnHistory,
-        }),
-      );
+
+      let world;
+      let usedFallback = false;
+      try {
+        world = await withSpinner(reader, 'Interpreting your move', () =>
+          generateWorld({
+            priorCrisis: crisis,
+            state: { ...state },
+            playerMove,
+            turnHistory,
+          }),
+        );
+      } catch (worldErr) {
+        // Fallback path: LLM world generator failed. Use the static crisis
+        // deck for the next crisis (we already used this one for the
+        // current turn's display) and the grammar for the delta. Log a
+        // warning to the run log so the case-study claim is preserved.
+        fallbackWarnings += 1;
+        usedFallback = true;
+        console.log('');
+        console.log('  (world generator unavailable; using static fallback)');
+        const grammarOutput = await withSpinner(reader, 'Interpreting your move', () =>
+          interpret({
+            crisis,
+            state: { ...state },
+            playerMove,
+            turnHistory,
+          }),
+        );
+        world = {
+          state_delta: grammarOutput.state_delta,
+          narrative: grammarOutput.interpretive_gloss,
+          situation: crisis.situation,
+          pressure: crisis.pressure,
+          decision_point: crisis.decision_point,
+          grounding_trace: grammarOutput.grounding_trace,
+          confidence: grammarOutput.confidence,
+          interpretive_gloss: grammarOutput.interpretive_gloss,
+          narrative_move: grammarOutput.narrative_move,
+          retrieved_pages: [],
+          fallback: true,
+        };
+      }
 
       // 5. Apply delta
-      const stateAfter = applyDelta(state, grammarOutput.state_delta);
+      const stateAfter = applyDelta(state, world.state_delta);
 
       // 6. Check collapse
       collapse = checkCollapse(stateAfter, turn);
@@ -338,11 +409,24 @@ async function runInteractive({ maxTurns = 14, model = process.env.OPENROUTER_MO
       }
 
       // 7. Record turn (with full advisor response if applicable)
+      // We keep the legacy `grammarOutput` field name on the turn record for
+      // artifact-generator + run-query compatibility, but populate it from
+      // the world generator's output.
+      const grammarOutputForRecord = {
+        state_delta: world.state_delta,
+        interpretive_gloss: world.interpretive_gloss,
+        narrative_move: world.narrative_move,
+        grounding_trace: world.grounding_trace,
+        confidence: world.confidence,
+      };
       turns.push({
         turn,
         crisis,
         playerMove,
-        grammarOutput,
+        grammarOutput: grammarOutputForRecord,
+        // New fields specific to cycle 5c
+        world,
+        worldFallback: usedFallback,
         stateBefore: state,
         stateAfter,
         collapse,
@@ -351,6 +435,7 @@ async function runInteractive({ maxTurns = 14, model = process.env.OPENROUTER_MO
       });
 
       state = stateAfter;
+      priorWorld = world;
 
       if (collapse) {
         console.log('');
@@ -381,6 +466,7 @@ async function runInteractive({ maxTurns = 14, model = process.env.OPENROUTER_MO
     turnsCompleted: turn,
     turns,
     finalState: state,
+    fallbackWarnings,
   };
 
   console.log('');
@@ -424,12 +510,20 @@ function buildRunLog(result) {
   lines.push('');
   lines.push('# Run log');
   lines.push('');
+  if (result.fallbackWarnings && result.fallbackWarnings > 0) {
+    lines.push(`> Note: ${result.fallbackWarnings} turn(s) used the static crisis + grammar fallback because the world generator call failed. The case-study claim is preserved (the fallback paths still record grounding traces).`);
+    lines.push('');
+  }
   for (const turn of result.turns) {
     lines.push(`## Turn ${turn.turn}`);
     lines.push('');
+    if (turn.worldFallback) {
+      lines.push('> *This turn used the static fallback path (world generator unavailable).*');
+      lines.push('');
+    }
     lines.push('### Crisis');
     lines.push('');
-    lines.push(`**${turn.crisis.title}** (failure pattern: ${turn.crisis.failure_pattern})`);
+    lines.push(`**${turn.crisis.title}** (failure pattern: ${turn.crisis.failure_pattern}${turn.crisis.fromWorld ? '; from world generator' : '; static seeded crisis'})`);
     lines.push('');
     lines.push('**Situation:** ' + turn.crisis.situation);
     lines.push('');
@@ -449,6 +543,14 @@ function buildRunLog(result) {
     lines.push('');
     lines.push(turn.playerMove);
     lines.push('');
+    // Cycle 5c: surface the world generator's narrative prominently.
+    // This is what makes the loop feel like the prose responds to the move.
+    if (turn.world && turn.world.narrative) {
+      lines.push('### World response (narrative)');
+      lines.push('');
+      lines.push(turn.world.narrative);
+      lines.push('');
+    }
     lines.push('### Grammar output');
     lines.push('');
     lines.push('**state_delta:**');
