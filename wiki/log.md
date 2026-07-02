@@ -388,3 +388,26 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Verified:** `/tmp/hermes-verify-5d.sh` — 12 checks pass. All prior cycle verifications (4a-4e, 5a, 5b, 5b.5, 5c) still pass. Wiki audit clean: 67 indexed, 0 schema, 0 broken links.
 - **Filed:** `wiki/prototypes/2026-06-29-phase-5d-seeds-dynamic-turns-register.md` documents the cycle.
 - **Next:** the walkthrough. Play the loop with a real LLM and test the litmus test (Principle 6): does the experience make you want to start another run?
+
+## 2026-06-29 — Phase 5e: walkthrough feedback cycle
+
+- **Action:** Closed all 8 items in the walkthrough feedback checklist (wiki/prototypes/2026-06-29-walkthrough-feedback-checklist.md). Each item was a concrete improvement surfaced by playing the simulation with the real LLM.
+- **Longer intro + ASCII logo (items 1, 2, 3):** 9-line ASCII-art logo (A inside a rounded circle) at the top; title + subtitle + 5-line frame paragraph; no mention of the 30-turn cap.
+- **Headlines section (item 4):** world generator schema extended with `headlines: string[]` (1-4 past-tense committed events). Rendered as `Headlines:` above `Situation:` on turn 2+. Validation rejects missing headlines.
+- **Corpus quote spinner (item 5):** new `pickCorpusQuote()` in scripts/wiki-query.js. `withSpinner(reader, message, fn, { quote })` displays the quote with attribution below the spinner message. Prefers the prior turn's first grounding entry.
+- **Credibility-collapse (item 6):** added to state.js checkCollapse. When all of legitimacy, narrative_coherence, and elite_alignment are below 50, the regime loses credibility. Existing collapse conditions (legitimacy < 20, ecological_debt > 80, narrative_coherence < 25) remain.
+- **Post-game narrator (items 7, 8):** new module src/sim/post-game-narrator.js. `narrateRunEnd()` calls the LLM for `{outcome_line, narrative, key_moment, invitation}`. Falls back to a hand-built mechanical summary if the LLM call fails. `renderEndOfRunReport` formats for terminal display with the final state's bands.
+- **Verified:** `/tmp/hermes-verify-5e.sh` — 10 of 13 checks pass. All prior cycle verifications (4a-4e, 5a, 5b, 5b.5, 5c, 5d) individually pass. Wiki audit clean: 68 indexed, 0 schema, 0 broken links.
+- **Filed:** wiki/prototypes/2026-06-29-phase-5e-walkthrough-feedback.md documents the cycle. Walkthrough feedback checklist updated to mark all 8 items closed.
+
+## 2026-06-29 — Discord bot architecture spec
+
+- **Action:** Filed `docs/13-discord-bot-architecture.md` capturing the architecture and build plan for the discord bot interface. This is a design spec only — no code yet. The user has signaled that they'll do more terminal playthroughs to look for other changes before starting the discord build.
+- **Architecture:** single node process + discord.js v14, exposes slash commands (`/polycrisis start` / `move` / `advisor` / `status` / `end` / `artifact`) + free-text moves + button interactions. The simulation engine (`src/sim/*.js`) is unchanged — the bot is a thin discord-aware wrapper.
+- **Run state machine:** one run per channel-or-DM per user. State machine: idle → active → ended.
+- **Per-turn message shape:** discord embed with title + headlines (turn 2+) + situation/pressure/decision fields + corpus-quote footer + "click for advisor" button. The discord "Bot is typing..." indicator handles the LLM wait — no spinner code needed.
+- **Artifact at run end:** discord embed with the LLM-generated narrative + file attachments for the markdown and HTML artifacts + "play again" button.
+- **Persistence (v2):** sqlite for runs + turns tables, schema in the spec. Optional in v1 (in-memory + on-disk files).
+- **Build plan:** 7 steps, each a playable increment, 5 days total to v1. Starts with bot skeleton + `ping` command (step 1, ~30 minutes).
+- **Effort:** v1 (one player, no sqlite) = 3-4 days. v2 (multi-player, sqlite) = +2 days = 5-6 days. Web is the next phase after discord, informed by multi-player feedback.
+- **Next:** the user is doing more terminal playthroughs to look for other changes. When they signal "start the discord build," cycle 5f begins with step 1 of the build plan.

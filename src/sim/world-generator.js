@@ -104,6 +104,7 @@ OUTPUT SCHEMA:
     "narrative_coherence": <integer -20 to +20>,
     "capability_frontier": <integer -20 to +20>
   },
+  "headlines": ["<1 sentence each, past tense, committed events>", "<...>", "<...>"],
   "narrative": "<2-4 sentences, accessible register. What happens in the world as a response to the player's prior move.>",
   "situation": "<1-2 sentences, accessible register. What the player sees first in the next turn.>",
   "pressure": "<1-2 sentences, accessible register. What is at stake.>",
@@ -111,6 +112,14 @@ OUTPUT SCHEMA:
   "grounding_trace": ["<wiki path>", ...],
   "confidence": "low" | "medium" | "high"
 }
+
+HEADLINES (cycle 5e):
+- 2-3 short bullet points, past tense.
+- These are COMMITTED events — things that have already happened in the run. They anchor the player before Situation says where the regime stands now.
+- The Situation should not reference events the Headlines haven't established.
+- If a Headline says "Anthropic agreed to a 90-day review", then Situation can refer to "the review window" without the player being confused.
+- Headlines can draw on the prior turn's narrative. They are *committed facts*, not speculation.
+- Keep each Headline to a single sentence. No subordinate clauses. Past tense only.
 
 STATE AXIS GUIDE (0-100 scale, bands: holding 75+, strained 50-74, eroded 25-49, collapsed <25):
 - legitimacy: Public acceptance of the regime's authority. Quick-response moves buy small legitimacy bumps but don't address structural deficits.
@@ -211,6 +220,15 @@ function validate(output) {
       throw new Error(`${field} missing or empty`);
     }
   }
+  // Cycle 5e: headlines — 2-3 short bullets of committed events.
+  if (!Array.isArray(output.headlines) || output.headlines.length < 1 || output.headlines.length > 4) {
+    throw new Error(`headlines must be an array of 1-4 strings, got ${JSON.stringify(output.headlines)}`);
+  }
+  for (const h of output.headlines) {
+    if (typeof h !== 'string' || h.length === 0) {
+      throw new Error('headlines entries must be non-empty strings');
+    }
+  }
   if (!Array.isArray(output.grounding_trace) || output.grounding_trace.length === 0) {
     throw new Error('grounding_trace missing or empty (case-study claim requires it)');
   }
@@ -288,6 +306,7 @@ async function generateWorld({ priorCrisis, state, playerMove, turnHistory = [],
         validate(parsed);
         return {
           state_delta: parsed.state_delta,
+          headlines: parsed.headlines || [],
           narrative: parsed.narrative,
           situation: parsed.situation,
           pressure: parsed.pressure,

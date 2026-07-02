@@ -112,6 +112,26 @@ function checkCollapse(state, turn) {
     };
   }
 
+  // Cycle 5e: credibility-collapse. When legitimacy, narrative_coherence,
+  // AND elite_alignment are all in the eroded band (below 50), the regime
+  // loses public credibility. This catches combined stress across axes that
+  // no single-axis threshold would catch — a player can lose credibility
+  // by eroding all three at once without any one hitting critical.
+  if (
+    state.legitimacy < 50 &&
+    state.narrative_coherence < 50 &&
+    state.elite_alignment < 50
+  ) {
+    return {
+      type: 'credibility-collapse',
+      conditions: {
+        legitimacy: state.legitimacy,
+        narrative_coherence: state.narrative_coherence,
+        elite_alignment: state.elite_alignment,
+      },
+    };
+  }
+
   return null;
 }
 

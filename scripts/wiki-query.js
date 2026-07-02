@@ -235,6 +235,71 @@ if (require.main === module) {
   });
 }
 
+// Cycle 5e: extract a single sentence-quote from a wiki page. Used by the
+// play loop to display a corpus quote alongside the "Interpreting your move"
+// spinner. The quote gives the spinner some texture beyond the pendulum dot.
+//
+// Strategy: split content into sentences, filter out short headers / bullets /
+// formatting, pick a sentence that's neither too short nor too long, and
+// belongs to a paragraph (not a heading or list).
+function extractQuote(page) {
+  if (!page || !page.content) return null;
+  // Split on sentence boundaries (period, exclamation, question mark followed
+  // by whitespace or end of string). The regex is loose; we filter afterwards.
+  const candidates = [];
+  const sentences = page.content.split(/(?<=[.!?])\s+/);
+  for (const s of sentences) {
+    const trimmed = s.trim();
+    // Skip headings, list items, blank lines, very short or very long sentences
+    if (trimmed.length < 40 || trimmed.length > 280) continue;
+    if (trimmed.startsWith('#') || trimmed.startsWith('-') || trimmed.startsWith('*')) continue;
+    if (trimmed.startsWith('|')) continue; // table row
+    if (trimmed.startsWith('---')) continue; // frontmatter delimiter
+    candidates.push(trimmed);
+  }
+  if (candidates.length === 0) return null;
+  // Pick a random candidate (deterministic seed from the page title would
+  // be better, but randomness is fine — the quote is ambient texture).
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+/**
+ * Cycle 5e: pick a single random wiki quote for the spinner. Used by the
+ * interactive CLI to add corpus-grounded texture to the LLM wait.
+ *
+ * @param {string|null} preferHref - optional wiki path to prefer (e.g. one
+ *   of the world's grounding entries); falls back to any page if the
+ *   preferred one has no extractable sentence.
+ * @returns {{text: string, href: string, title: string}|null}
+ */
+function pickCorpusQuote(preferHref = null) {
+  try {
+    const content = fs.readFileSync(INDEX_PATH, 'utf8');
+    const pages = parseWikiIndex(content);
+    if (pages.length === 0) return null;
+    // Try the preferred href first
+    if (preferHref) {
+      const preferred = pages.find(p => p.href === preferHref);
+      if (preferred) {
+        const pageContent = readSelectedPages([preferred], WIKI_DIR)[0];
+        const quote = extractQuote(pageContent);
+        if (quote) return { text: quote, href: preferred.href, title: preferred.title };
+      }
+    }
+    // Pick a random page (avoid signals/ which are news-y and have shorter content)
+    const candidates = pages.filter(p => !p.href.startsWith('signals/'));
+    const shuffled = candidates.slice().sort(() => Math.random() - 0.5);
+    for (const p of shuffled.slice(0, 5)) {
+      const pageContent = readSelectedPages([p], WIKI_DIR)[0];
+      const quote = extractQuote(pageContent);
+      if (quote) return { text: quote, href: p.href, title: p.title };
+    }
+    return null;
+  } catch (err) {
+    return null;
+  }
+}
+
 module.exports = {
   parseWikiIndex,
   rankPagesForQuestion,
@@ -242,4 +307,6 @@ module.exports = {
   buildAnswerPrompt,
   extractQuestion,
   answerQuestion,
+  extractQuote,
+  pickCorpusQuote,
 };
