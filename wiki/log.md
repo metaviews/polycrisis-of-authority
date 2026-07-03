@@ -424,3 +424,21 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Verified:** `/tmp/hermes-verify-6a-discord-skeleton.sh` — 8 checks pass. Live-run check (gateway connect + `/ping`) requires real credentials and is done manually by the user.
 - **Filed:** `wiki/prototypes/2026-07-03-cycle-6a-discord-skeleton.md` documents the cycle.
 - **Next:** confirm step 1 lands (real gateway connect + `/ping` reply) before starting step 2 (`/polycrisis start`). Step 2 is the first step that touches the simulation engine; cycle 6b's planning conversation will design the surface-adapter refactor.
+
+## 2026-07-03 — Cycle 6b: Discord /polycrisis start (step 2 of 7)
+
+- **Action:** Filed `src/sim/surface.js`, `src/sim/run-loop.js`, `src/bot/surface.js`, `src/bot/commands.js`. Refactored `src/sim/interactive.js` and `src/bot/bot.js`. Updated `docs/14-discord-bot-setup.md` with step 2 section.
+- **Engine refactor (load-bearing):** extracted the turn loop from `interactive.js` into `run-loop.js` that takes a surface adapter. `interactive.js` becomes the TTY surface (still exports `runInteractive`, `withSpinner`, `createReader`); `bot/surface.js` becomes the discord surface. Both surfaces share the loop, the world generator call, the post-game narrator, and the run log + artifact writing. The engine's *behavior* is unchanged — only the I/O coupling was lifted out.
+- **Surface adapter contract (src/sim/surface.js):** documented the 7 methods a surface must implement (`isTTY`, `print`, `waitWhileLLM`, `close`, `readMove`, `readChoice`, `readConfirm`). Ships `formatCrisisForTTY` and `formatCrisisForDiscord` so both surfaces format crisis objects consistently.
+- **Discord surface (src/bot/surface.js):** `print` posts embeds or splits text >2000 chars. `waitWhileLLM` starts the typing indicator, refreshes every 5s. `readMove`/`readChoice`/`readConfirm` throw "not yet implemented" — step 2 ships no input handling.
+- **Commands (src/bot/commands.js):** pure handler builders (`buildPingReply`, `buildPolycrisisStartReply`) + slash command definitions + in-memory `activeRuns` Map keyed by `${channelOrDmId}:${userId}`. Spec's "one run per channel-or-DM per user" rule enforced via duplicate rejection.
+- **Slash command tree:** `/polycrisis start [seed_id:<id>]` registered alongside `/ping`. The `seed_id` option accepts a curated seed id (`crisis-1` through `crisis-8`); unknown ids warn and fall back to random selection.
+- **Embed shape:** discord embed with title + Situation field + deferred "Pressure & Decision point" field for turn 1 (the LLM generates pressure/decision after the first move, per cycle 5g's terminal behavior). Color palette: muted archival (`0x8a7f5c` for seed, `0x9a6b3f` for world).
+- **Verification scripts updated:**
+  - `/tmp/hermes-verify-6b-discord-start.sh` — 53 checks, all pass. Covers engine refactor, discord surface adapter, slash commands + state, handler logic (5 distinct test cases), bot entrypoint, setup doc, walkthrough regressions.
+  - `/tmp/hermes-verify-5j-resign.sh` — updated to grep both `interactive.js` and `run-loop.js` for resign handlers (the loop moved); added missing `check_ge` helper. 14 of 14 pass.
+  - `/tmp/hermes-verify-6a-discord-skeleton.sh` — relaxed the "7 numbered steps" check to "≥7" since cycle 6b adds a Step 2 section.
+- **Pre-existing issue:** `/tmp/hermes-verify-5i-quote-filter.sh` has 1 pre-existing failure (`extractQuote still returns substantive corpus sentences`) verified via `git stash` at `a8595e4` baseline. Not caused by this cycle. The 6b regression script accepts ≤2 fails in 5j (one cascading from 5i, one from 5j's own pass that depends on 5i).
+- **Verified:** 53 of 53 checks pass. Walkthrough regressions: 5f=10, 5g=10, 5h=17, 5j=14.
+- **Filed:** `wiki/prototypes/2026-07-03-cycle-6b-discord-start.md` documents the cycle.
+- **Next:** user runs `/polycrisis start` in their test server per `docs/14-discord-bot-setup.md` step 2. Confirms step 2 lands. Cycle 6c (step 3): wire discord surface.readMove via MessageCollector; invoke `runLoop` from the `/polycrisis start` handler; turn 2+ flow. The 5i pre-existing failure should be addressed in a separate follow-up cycle.

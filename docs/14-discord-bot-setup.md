@@ -129,6 +129,52 @@ Step 1 (cycle 6a) is complete when:
 
 Confirm step 1 to proceed to step 2 (`/polycrisis start` posts the seed/turn-1 prose).
 
+## Step 2 — Try `/polycrisis start`
+
+Once step 1 lands (gateway connected, `/ping` works), restart the bot:
+
+```
+npm run bot
+```
+
+Expected output (truncated):
+
+```
+[bot] registered 2 command(s) as GUILD commands in <guild id> (instant)
+[bot]   - /ping
+[bot]   - /polycrisis <subcommand>
+[bot] ready — logged in as <bot tag> (id=…)
+[bot] watching 1 guild(s)
+[bot] step 2 complete: /polycrisis start posts turn 1 as an embed. /ping still works.
+```
+
+In your discord test server (or in a DM with the bot), type `/polycrisis start`. The bot should reply with a discord embed containing:
+
+- **Title:** the crisis title (e.g. "OpenAI seed")
+- **Situation field:** the seed's 5–6 sentence briefing as the turn-1 crisis
+- **Pressure & Decision point field:** a deferred note ("Pressure and decision point will be generated after your first move")
+
+After the embed, the bot sends an ephemeral followup noting that free-text move handling arrives in step 3.
+
+### Optional: specify a seed
+
+`/polycrisis start seed_id:<id>` picks a specific seed from the curated set instead of choosing at random. To find the available seed ids, look at `scripts/seed-variants.js` (each entry has an `id` field like `meta-content-moderation`, `crisis-7`, etc.). If the id doesn't match any seed, the bot posts a warning and falls back to a random seed.
+
+### Rejecting a second run
+
+If you type `/polycrisis start` again while a run is still active for you in the same channel/DM, the bot replies (ephemeral) with "You already have an active run in this channel." This is the spec's "one run per channel-or-DM per user" rule.
+
+For step 2, the bot has no `/polycrisis end` shortcut, so if you want to abandon an active run, you'll have to restart the bot (the run state is in-memory). Step 3 (cycle 6c) will add proper move handling and a way to end runs.
+
+### What "step 2 complete" means
+
+- [ ] `/polycrisis start` posts a discord embed with the seed's situation as the first crisis
+- [ ] `/polycrisis start seed_id:<id>` honors the specified seed id (or warns on unknown)
+- [ ] A second `/polycrisis start` is rejected with the "already have an active run" message
+- [ ] `/ping` still works
+
+Confirm step 2 to proceed to step 3 (free-text move handling in DMs — typing the indicator handles the LLM wait).
+
 ## Related docs
 
 - `docs/13-discord-bot-architecture.md` — the architecture spec this setup doc implements

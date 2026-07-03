@@ -1,21 +1,36 @@
 // src/bot/bot.js
 //
-// Polycrisis of Authority — discord bot entrypoint (cycle 6a, step 1).
+// Polycrisis of Authority — discord bot entrypoint.
 //
-// This file is the gateway connect + slash command registration + /ping handler.
-// No simulation engine integration yet. Step 2 (cycle 6b) wires up /polycrisis start.
+// Cycles:
+//   6a (step 1): gateway connect + /ping slash command + graceful shutdown.
+//   6b (step 2): /polycrisis start posts the seed/turn-1 crisis as a single
+//                discord embed. No move handling yet — the discord surface's
+//                readMove / readChoice / readConfirm throw "not yet
+//                implemented". Step 3 (cycle 6c) wires up free-text moves.
 //
 // Required env vars:
 //   DISCORD_BOT_TOKEN   — bot user token from https://discord.com/developers/applications
 //   DISCORD_CLIENT_ID   — application (client) id
-//   DISCORD_GUILD_ID    — (optional) test server id. If set, /ping is registered as a
-//                          GUILD command (instant update). If unset, /ping is registered
-//                          as a GLOBAL command (~1hr propagation).
+//   DISCORD_GUILD_ID    — (optional) test server id. If set, slash commands
+//                          are registered as GUILD commands (instant update).
+//                          If unset, GLOBAL (~1hr propagation).
 //
 // Usage:
 //   DISCORD_BOT_TOKEN=... DISCORD_CLIENT_ID=... [DISCORD_GUILD_ID=...] node src/bot/bot.js
 
 const { Client, GatewayIntentBits, REST, Routes } = require('discord.js');
+
+const {
+  PING_COMMAND,
+  POLYCRISIS_START_COMMAND,
+  ALL_COMMANDS,
+  activeRuns,
+  buildPingReply,
+  buildPolycrisisStartReply,
+  STEP2_FOLLOWUP_TEXT,
+  ALREADY_ACTIVE_TEXT,
+} = require('./commands');
 
 // ---------------------------------------------------------------------------
 // config
@@ -36,29 +51,60 @@ const GUILD_ID = process.env.DISCORD_GUILD_ID && process.env.DISCORD_GUILD_ID.tr
   ? process.env.DISCORD_GUILD_ID
   : null;
 
-const PING_COMMAND = {
-  name: 'ping',
-  description: 'Polycrisis bot health check. Replies with pong and gateway latency.',
-};
-
 // ---------------------------------------------------------------------------
 // slash command registration
 // ---------------------------------------------------------------------------
 
-async function registerPingCommand() {
+async function registerCommands() {
   const rest = new REST({ version: '10' }).setToken(BOT_TOKEN);
 
   if (GUILD_ID) {
-    // Guild-scoped: instant update, ideal for the dev loop.
     const route = Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID);
-    await rest.put(route, { body: [PING_COMMAND] });
-    console.log(`[bot] registered /ping as a GUILD command in ${GUILD_ID} (instant)`);
+    await rest.put(route, { body: ALL_COMMANDS });
+    console.log(`[bot] registered ${ALL_COMMANDS.length} command(s) as GUILD commands in ${GUILD_ID} (instant)`);
+    for (const cmd of ALL_COMMANDS) {
+      console.log(`[bot]   - /${cmd.name}${cmd.options ? ' <subcommand>' : ''}`);
+    }
   } else {
-    // Global: ~1hr propagation, but works in every server the bot joins.
     const route = Routes.applicationCommands(CLIENT_ID);
-    await rest.put(route, { body: [PING_COMMAND] });
-    console.log('[bot] registered /ping as a GLOBAL command (~1hr propagation)');
+    await rest.put(route, { body: ALL_COMMANDS });
+    console.log(`[bot] registered ${ALL_COMMANDS.length} command(s) as GLOBAL commands (~1hr propagation)`);
   }
+}
+
+// ---------------------------------------------------------------------------
+// command handlers (wrap the pure builders from commands.js with discord I/O)
+// ---------------------------------------------------------------------------
+
+async function handlePing(interaction) {
+  const sent = await interaction.reply({ content: 'ping…', fetchReply: true });
+  const roundtrip = sent.createdTimestamp - interaction.createdTimestamp;
+  const wsLatency = client.ws.ping;
+  const reply = buildPingReply(interaction, { roundtripMs: roundtrip, wsLatencyMs: wsLatency });
+  await interaction.editReply(reply.content);
+}
+
+async function handlePolycrisisStart(interaction) {
+  const result = buildPolycrisisStartReply(interaction);
+
+  if (result.kind === 'already_active') {
+    await interaction.reply({ content: ALREADY_ACTIVE_TEXT, ephemeral: true });
+    return;
+  }
+
+  // Defer the reply so we can take time to build the crisis embed.
+  // Discord requires a reply within 3s otherwise the interaction fails.
+  await interaction.deferReply();
+
+  if (result.warning) {
+    await interaction.editReply({ content: result.warning });
+    await interaction.followUp({ embeds: [result.embed] });
+  } else {
+    await interaction.editReply({ embeds: [result.embed] });
+  }
+
+  // Followup hint about what's not yet implemented (steps 3+).
+  await interaction.followUp({ content: STEP2_FOLLOWUP_TEXT, ephemeral: true });
 }
 
 // ---------------------------------------------------------------------------
@@ -66,12 +112,10 @@ async function registerPingCommand() {
 // ---------------------------------------------------------------------------
 
 const client = new Client({
-  // We need only message content for future step-3 free-text move handling.
-  // Step 1 doesn't read messages, but declaring the intent now avoids re-auth later.
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,  // privileged; enable in dev portal too
+    GatewayIntentBits.MessageContent,
     GatewayIntentBits.DirectMessages,
   ],
 });
@@ -79,20 +123,34 @@ const client = new Client({
 client.once('ready', (c) => {
   console.log(`[bot] ready — logged in as ${c.user.tag} (id=${c.user.id})`);
   console.log(`[bot] watching ${c.guilds.cache.size} guild(s)`);
-  console.log('[bot] step 1 complete: bot skeleton is alive. /ping to verify.');
+  console.log('[bot] step 2 complete: /polycrisis start posts turn 1 as an embed. /ping still works.');
 });
 
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
-  if (interaction.commandName !== 'ping') return;
 
-  const sent = await interaction.reply({ content: 'ping…', fetchReply: true });
-  const roundtrip = sent.createdTimestamp - interaction.createdTimestamp;
-  const wsLatency = client.ws.ping;
-  await interaction.editReply(
-    `pong — roundtrip ${roundtrip}ms, websocket ${wsLatency}ms, ` +
-    `user ${interaction.user.tag}, channel ${interaction.channelId}`
-  );
+  try {
+    if (interaction.commandName === 'ping') {
+      await handlePing(interaction);
+    } else if (
+      interaction.commandName === 'polycrisis' &&
+      interaction.options.getSubcommand() === 'start'
+    ) {
+      await handlePolycrisisStart(interaction);
+    }
+  } catch (err) {
+    console.error(`[bot] error handling /${interaction.commandName}:`, err);
+    try {
+      const reply = `Something went wrong handling that command: ${err.message}`;
+      if (interaction.deferred || interaction.replied) {
+        await interaction.followUp({ content: reply, ephemeral: true });
+      } else {
+        await interaction.reply({ content: reply, ephemeral: true });
+      }
+    } catch (followUpErr) {
+      console.error('[bot] followUp also failed:', followUpErr);
+    }
+  }
 });
 
 client.on('error', (err) => {
@@ -126,7 +184,7 @@ process.on('unhandledRejection', (reason) => {
 
 (async () => {
   try {
-    await registerPingCommand();
+    await registerCommands();
     await client.login(BOT_TOKEN);
   } catch (err) {
     console.error('[bot] startup failed:', err);
@@ -140,8 +198,10 @@ process.on('unhandledRejection', (reason) => {
 
 module.exports = {
   PING_COMMAND,
-  // registerPingCommand is async and side-effecting; not re-exported.
-  // client is the singleton — verification scripts that need it can require this module
-  // and inspect `module.exports.client` if we expose it later. For step 1, the static
-  // PING_COMMAND export is enough.
+  POLYCRISIS_START_COMMAND,
+  ALL_COMMANDS,
+  // Expose the pure builders for verification scripts.
+  buildPingReply,
+  buildPolycrisisStartReply,
+  activeRuns,
 };
