@@ -57,7 +57,7 @@ function retrieveContext(priorCrisis, playerMove, state, limit = 4) {
   return readSelectedPages(selected, WIKI_DIR);
 }
 
-function buildSystemPrompt() {
+function buildSystemPrompt(identity = null) {
   // The world generator's role: produce narrative that responds to the
   // player's move, with state deltas grounded in both the corpus and the
   // current state. The output is the SAME shape the grammar produced
@@ -76,6 +76,12 @@ function buildSystemPrompt() {
   // legalese. The player should be able to read each turn in 20 seconds
   // without re-reading.
   return `You are the world of the Polycrisis of Authority simulation. The player is governing a regime that responds to AI-policy crises. Each turn, the player writes policy in their own words; you produce what happens in the world as a result.
+
+PLAYER AND REGIME (cycle 5h):
+- The player is called "${identity ? identity.player : 'the player'}".
+- The institution they govern is called "${identity ? identity.regime : 'the regime'}".
+- Refer to both by their chosen names in situation/pressure/decision_point/narrative prose when it reads naturally. The player chose these names; using them reinforces their investment in the simulation.
+- Default names ("the player" / "the regime") read as generic; if either default is in effect, you may use them as-is or rephrase to maintain narrative variety.
 
 CRITICAL RULES:
 1. Output ONLY valid JSON matching the schema below. No prose outside the JSON.
@@ -142,7 +148,7 @@ NARRATIVE QUALITY:
 - If the player took no action or a weak action, the narrative can show consequences accumulating.`;
 }
 
-function buildUserPrompt({ priorCrisis, state, playerMove, turnHistory, retrievedPages, seedFragment, actor }) {
+function buildUserPrompt({ priorCrisis, state, playerMove, turnHistory, retrievedPages, seedFragment, actor, identity }) {
   const stateVector = Object.entries(state)
     .map(([k, v]) => `  ${k}: ${v}`)
     .join('\n');
@@ -178,6 +184,11 @@ Situation: ${priorCrisis.situation}
 Pressure: ${priorCrisis.pressure}`;
 
   return `${seedSection}
+
+PLAYER AND REGIME (cycle 5h):
+- Player: ${identity ? identity.player : 'the player'}
+- Regime they govern: ${identity ? identity.regime : 'the regime'}
+- Use these names in the prose when it reads naturally. Don't force them.
 
 CURRENT STATE VECTOR (after the prior turn's delta applied):
 ${stateVector}
@@ -247,7 +258,7 @@ function validate(output) {
 // accepted for backward compatibility with the fallback path, but when
 // seedFragment is provided, the world generator uses it as the prompt
 // anchor instead of the prior crisis's situation/pressure fields.
-async function generateWorld({ priorCrisis, state, playerMove, turnHistory = [], seedFragment = null, actor = null, model = process.env.OPENROUTER_MODEL, maxAttempts = 3 } = {}) {
+async function generateWorld({ priorCrisis, state, playerMove, turnHistory = [], seedFragment = null, actor = null, identity = null, model = process.env.OPENROUTER_MODEL, maxAttempts = 3 } = {}) {
   if (!state || !playerMove) {
     throw new Error('generateWorld requires state and playerMove');
   }
@@ -258,8 +269,8 @@ async function generateWorld({ priorCrisis, state, playerMove, turnHistory = [],
   loadEnv(ROOT_DIR);
 
   const retrievedPages = retrieveContext(priorCrisis || { situation: seedFragment, pressure: '' }, playerMove, state);
-  const systemPrompt = buildSystemPrompt();
-  const userPrompt = buildUserPrompt({ priorCrisis, state, playerMove, turnHistory, retrievedPages, seedFragment, actor });
+  const systemPrompt = buildSystemPrompt(identity);
+  const userPrompt = buildUserPrompt({ priorCrisis, state, playerMove, turnHistory, retrievedPages, seedFragment, actor, identity });
 
   const client = createClient({ title: 'Polycrisis World Generator', temperature: 0.4 });
 

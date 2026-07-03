@@ -118,7 +118,7 @@ function retrieveContext(crisis, playerMove, limit = 6) {
   return readSelectedPages(selected, WIKI_DIR);
 }
 
-async function interpret({ crisis, state, playerMove, turnHistory = [], model = process.env.OPENROUTER_MODEL, maxAttempts = 3 }) {
+async function interpret({ crisis, state, playerMove, turnHistory = [], identity = null, model = process.env.OPENROUTER_MODEL, maxAttempts = 3 }) {
   loadEnv(ROOT_DIR);
 
   const retrievedPages = retrieveContext(crisis, playerMove);

@@ -70,9 +70,16 @@ const VOICE_GROUNDING = {
   ],
 };
 
-function buildAdvisorSystemPrompt(voice) {
+function buildAdvisorSystemPrompt(voice, identity = null) {
   // Per docs/10-advisor-prompts.md § describe-not-recommend mechanism
+  const player = identity ? identity.player : 'the player';
+  const regime = identity ? identity.regime : 'the regime';
   return `You are the ${voice} advisor in the Polycrisis of Authority simulation. You represent the position of ${voice.replace('-', ' ')} actors as documented in the corpus.
+
+PLAYER AND REGIME (cycle 5h):
+- The player is called "${player}".
+- The institution they govern is called "${regime}".
+- Refer to them by these names when describing the situation. "The ${regime} faces..." reads better than "the regime faces...".
 
 WHAT YOU DESCRIBE: how this position sees the current crisis — what it emphasizes, what it considers the relevant context, what its prior statements have been on similar situations.
 
@@ -88,7 +95,7 @@ GROUNDING: respond based on the corpus entries provided below. If the corpus doe
 FORMAT: prose, third-person framing ("This position sees..." or "The ${voice.replace('-', ' ')} perspective emphasizes..."). Length: 100-150 words.`;
 }
 
-function buildAdvisorUserPrompt({ voice, crisis, state, retrievedPages }) {
+function buildAdvisorUserPrompt({ voice, crisis, state, retrievedPages, identity = null }) {
   const stateVector = Object.entries(state)
     .map(([k, v]) => `  ${k}: ${v}`)
     .join('\n');
@@ -137,7 +144,7 @@ function retrieveAdvisorContext(voice, crisis, playerMove, limit = 6) {
   return readSelectedPages(combined, WIKI_DIR);
 }
 
-async function consult({ voice, crisis, state, playerMove, model = process.env.OPENROUTER_MODEL }) {
+async function consult({ voice, crisis, state, playerMove, identity = null, model = process.env.OPENROUTER_MODEL }) {
   if (!ADVISOR_VOICES.includes(voice)) {
     throw new Error(`Unknown advisor voice: ${voice}. Valid voices: ${ADVISOR_VOICES.join(', ')}`);
   }
@@ -145,8 +152,8 @@ async function consult({ voice, crisis, state, playerMove, model = process.env.O
   loadEnv(ROOT_DIR);
 
   const retrievedPages = retrieveAdvisorContext(voice, crisis, playerMove);
-  const systemPrompt = buildAdvisorSystemPrompt(voice);
-  const userPrompt = buildAdvisorUserPrompt({ voice, crisis, state, retrievedPages });
+  const systemPrompt = buildAdvisorSystemPrompt(voice, identity);
+  const userPrompt = buildAdvisorUserPrompt({ voice, crisis, state, retrievedPages, identity });
 
   const client = createClient({ title: `Polycrisis Advisor (${voice})`, temperature: 0.3 });
   const messages = [

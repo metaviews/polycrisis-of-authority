@@ -38,6 +38,13 @@ function formatHeader(runResult) {
   lines.push(`**Model:** ${runResult.model}`);
   lines.push(`**Outcome:** ${runResult.outcome}`);
   lines.push(`**Turns completed:** ${runResult.turnsCompleted}`);
+  // Cycle 5h: identify who played and what they governed.
+  if (runResult.player || runResult.regime) {
+    const player = runResult.player || 'the player';
+    const regime = runResult.regime || 'the regime';
+    lines.push(`**Player:** ${player}`);
+    lines.push(`**Regime:** ${regime}`);
+  }
   lines.push('');
   return lines.join('\n');
 }
@@ -48,19 +55,23 @@ function formatRunSummary(runResult) {
   const firstState = turns[0].stateBefore;
   const lastState = turns[turns.length - 1].stateAfter;
   const outcome = runResult.outcome;
+  const regime = runResult.regime || 'the regime';
+  const player = runResult.player || 'the player';
 
   const openingDescriptor = describeStateOpening(firstState);
   const crisisCount = turns.length;
   const crisisList = turns.map((t) => `"${t.crisis.title}"`).join(', ');
   const outcomeDescriptor = outcome === 'no-collapse'
     ? `The simulation ran to completion (${runResult.turnsCompleted} turns) without triggering a collapse condition.`
-    : `The simulation ended with ${outcome.replace(/-/g, ' ')} on turn ${runResult.turnsCompleted}.`;
+    : outcome === 'player-quit'
+      ? `${player} resigned from ${regime} on turn ${runResult.turnsCompleted}.`
+      : `The simulation ended with ${outcome.replace(/-/g, ' ')} on turn ${runResult.turnsCompleted}.`;
 
   const closingDescriptor = describeStateClosing(lastState);
 
   lines.push('## Run summary');
   lines.push('');
-  lines.push(`You governed for ${crisisCount} turns. The regime began in a ${openingDescriptor} position. Over the course of the run, you faced: ${crisisList}. ${outcomeDescriptor} The closing state was ${closingDescriptor}.`);
+  lines.push(`${player} governed ${regime} for ${crisisCount} turns. The regime began in a ${openingDescriptor} position. Over the course of the run, you faced: ${crisisList}. ${outcomeDescriptor} The closing state was ${closingDescriptor}.`);
   lines.push('');
   return lines.join('\n');
 }
@@ -258,11 +269,11 @@ function formatCollapseReveal(runResult) {
   lines.push('## Collapse reveal');
   lines.push('');
 
-  // Player quit mid-run
+  // Player resigned mid-run (cycle 5j vocabulary — was "player-quit" / "exited")
   if (runResult.outcome === 'player-quit') {
-    lines.push('You exited the simulation before completion. The conditions for any of the three collapse modes (legitimacy, technical, narrative capture) had not been met when you stopped.');
+    lines.push('You resigned before completion. The conditions for any of the three collapse modes (legitimacy, technical, narrative capture) had not been met when you stopped.');
     lines.push('');
-    lines.push('A player-quit is a kind of meta-collapse: the regime did not fall; the player chose to disengage. The hidden state at the moment of exit may have been drifting toward any of several trajectories, but the simulation never resolved.');
+    lines.push('A resignation is a kind of meta-collapse: the regime did not fall; the player chose to disengage. The hidden state at the moment of resignation may have been drifting toward any of several trajectories, but the simulation never resolved.');
     lines.push('');
     lines.push('**Visible signals vs hidden value at exit:**');
     lines.push('');

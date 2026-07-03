@@ -45,6 +45,7 @@ const { renderArtifactHtml } = require('./artifact-render');
 const { formatStateBlock, formatStateCompact, formatDeltaBlock, formatVisibleSignalsDisplay, computeVisibleSignals } = require('./state-display');
 const { wrap } = require('./cli-format');
 const { selectAtmospherics } = require('./atmospherics');
+const { promptForIdentity } = require('./identity');
 
 const ROOT_DIR = path.join(__dirname, '..', '..');
 
@@ -185,27 +186,29 @@ async function withSpinner(reader, message, fn, { atmospherics = null, corpusQuo
     return await fn();
   }
 
-  // TTY mode: pendulum spinner.
-  // The message is followed by 5 dot-position spaces; the dot oscillates
-  // through them. The dot is NEVER placed inside the message text — the
-  // message is always intact.
-  const dotPositions = [0, 1, 2, 3, 4, 3, 2, 1];
-  const prefix = INDENT + message + ' ';
-  const totalLen = prefix.length + 4; // 4 dot-position spaces
-  const renderFrame = (dotPos) => {
-    let line = prefix;
-    while (line.length < totalLen) line += ' ';
-    const dotIdx = totalLen - 4 + dotPos;
-    return line.slice(0, dotIdx) + '·' + line.slice(dotIdx + 1);
+  // TTY mode: static line with a pulsing character at the end.
+// Cycle 5h: the previous version used a pendulum that oscillated the
+// dot position via cursor-up moves. In some terminals this caused
+// the spinner line to drift upward across the screen, disrupting
+// the player's reading of the previous turn. The replacement keeps
+// the line at a fixed position; only the trailing character changes.
+// There is NO cursor movement — no \x1b[NA, no \r, no save/restore.
+// The pulsing character cycles every 800ms.
+  const pulseChars = ['·', '·', '*', '·', '+', '·', '.', '·'];
+  const baseLine = INDENT + message + ' ';
+  // The pulse character sits at the end of the line. Spaces are
+  // appended to ensure the previous pulse char is fully overwritten.
+  const renderFrame = (pulseIdx) => {
+    return baseLine + pulseChars[pulseIdx % pulseChars.length] + '   ';
   };
 
   // Track how many lines we print below the spinner so the cleanup pass
   // can move up the right number of lines.
-  let frameIdx = 0;
+  let pulseIdx = 0;
   let stopped = false;
   // Print the first frame immediately, then the layers below it.
   // The initial print ends in '\n' so the spinner sits on its own line.
-  reader.print(renderFrame(dotPositions[0]) + '\n');
+  reader.print(renderFrame(pulseIdx) + '\n');
   if (atmosphericsBlock) {
     reader.print(atmosphericsBlock + '\n');
   }
@@ -216,21 +219,17 @@ async function withSpinner(reader, message, fn, { atmospherics = null, corpusQuo
   const linesBelowSpinner = atmosphericsLineCount + corpusQuoteLineCount;
   const linesToMoveUp = 1 + linesBelowSpinner;
 
-  // The tick overwrites the spinner line in place — NO trailing newline.
-  // This is the difference vs cycle 5f's spinner: previous version added
-  // one line of scrollback per tick because the redraw ended with '\n'.
-  // Across a 15-turn run that's ~30-60 phantom lines accumulating between
-  // the player and the next turn's prose, which read as 'interpreting
-  // your move keeps showing up the page.'
+  // The tick overwrites the spinner line in place using carriage return.
+  // No cursor up, no down — just \r to return to col 0 of the same line
+  // and rewrite the frame. The trailing spaces ensure the previous
+  // pulse character (which may be wider than the new one, e.g. '*' vs '.')
+  // is fully overwritten.
   const tick = async () => {
     while (!stopped) {
       await new Promise(r => setTimeout(r, 800));
       if (stopped) break;
-      frameIdx = (frameIdx + 1) % dotPositions.length;
-      const upSeq = '\x1b[' + linesToMoveUp + 'A';
-      // \r returns to col 0 of the spinner line; the rewritten frame
-      // ends with \r (NOT \n) so we stay on the same line.
-      reader.print(upSeq + '\r' + renderFrame(dotPositions[frameIdx]) + '\r');
+      pulseIdx += 1;
+      reader.print('\r' + renderFrame(pulseIdx));
     }
   };
   const tickPromise = tick();
@@ -240,10 +239,6 @@ async function withSpinner(reader, message, fn, { atmospherics = null, corpusQuo
     stopped = true;
     await tickPromise;
     // Cleanup uses ANSI clear-to-end-of-screen so no scrollback is added.
-    // Previous version wrote (linesBelowSpinner + 1) '\r\n' sequences,
-    // each of which added a phantom line to the terminal scrollback and
-    // separated this turn from the next with blank lines.
-    //
     // Sequence:
     //   \x1b[NA  — move cursor up to the spinner line
     //   \x1b[2K  — clear the entire spinner line
@@ -258,7 +253,7 @@ async function withSpinner(reader, message, fn, { atmospherics = null, corpusQuo
 
 // Render a single turn's prose (Situation / Pressure / Decision point).
 // Returns the formatted string ready for stdout.
-function renderCrisisProse(crisis) {
+function renderCrisisProse(crisis, identity = null) {
   const lines = [];
   lines.push(`  ${crisis.title}`);
   lines.push('');
@@ -277,6 +272,14 @@ function renderCrisisProse(crisis) {
   // section; Pressure and Decision point are deferred until after the
   // player's first move (still produced by the world generator).
   if (crisis.fromSeed) {
+    // Cycle 5h: one-liner identifying the player and regime. Sits
+    // between the title and the briefing so the player knows whose
+    // seat they're in before reading the situation. Suppressed when
+    // identity was not provided (e.g. legacy callers).
+    if (identity) {
+      lines.push(`  You are ${identity.player}. You govern ${identity.regime}.`);
+      lines.push('');
+    }
     lines.push('  Situation:');
     lines.push('  ' + wrap(crisis.situation, 68).split('\n').map(l => '  ' + l).join('\n').trim());
     lines.push('');
@@ -324,12 +327,13 @@ function crisisFromWorld(worldOrCrisis, fallbackTitle) {
 // Get a short advisor paragraph (~50 words) for in-loop consults.
 // The full corpus-grounded version is still generated and recorded
 // in the run log + artifact; the loop version is a quick briefing.
-async function consultAdvisorShort(voice, crisis, state) {
+async function consultAdvisorShort(voice, crisis, state, identity = null) {
   const response = await consult({
     voice,
     crisis,
     state: { ...state },
     playerMove: '[player is consulting before writing their move]',
+    identity,
   });
   // Trim to roughly 50 words for the loop. The full response is still
   // recorded in the run log via the advisorUsed field.
@@ -368,9 +372,20 @@ async function runInteractive({ maxTurns = MAX_TURNS, model = process.env.OPENRO
   console.log('  holds or it falls.');
   console.log('');
   console.log('  End your move with a blank line. Type `a` to consult an advisor first.');
+  console.log('  To end the run at any point, type `r` (or `resign`) at the move prompt,');
+  console.log('  or include `::resign` on its own line inside a multi-line move.');
   console.log('');
 
   const reader = createReader();
+
+  // Cycle 5h: capture player + regime identity up-front. Threaded through
+  // the world generator prompt, briefing augmentation, post-game narrator,
+  // and artifact generator so the simulation refers to the player and
+  // the institution by their chosen names.
+  const identity = await promptForIdentity(reader);
+  console.log('');
+  console.log(`  Playing as ${identity.player}, governing ${identity.regime}.`);
+  console.log('');
 
   let state = { ...INITIAL_STATE };
   let turn = 0;
@@ -422,18 +437,34 @@ async function runInteractive({ maxTurns = MAX_TURNS, model = process.env.OPENRO
 
       // 2. Render the prose (Situation / Pressure / Decision point)
       console.log(`\n  ─── Turn ${turn} ───\n`);
-      console.log(renderCrisisProse(crisis));
+      console.log(renderCrisisProse(crisis, identity));
 
       // 3. Get the player's move. The prompt is multi-line: the player
-      // types their move and ends with a blank line. As a shortcut,
-      // typing `a` on the first line enters advisor mode instead.
+      // types their move and ends with a blank line. As shortcuts,
+      // typing `a` on the first line enters advisor mode; typing `r`
+      // (or `resign`) at the prompt OR `::resign` on its own line
+      // inside a multi-line move ends the run.
       let playerMove = null;
       let advisorUsed = null;
       let advisorFullResponse = null;
+      let resignedThisTurn = false;
 
       // First, ask the player whether they want to consult an advisor
       // (single line — this is a shortcut, not the move itself).
-      const firstLine = await reader.prompt('  Your move (or `a` for an advisor): ');
+      const firstLine = await reader.prompt('  Your move (or `a` for an advisor, `r` to resign): ');
+
+      // Cycle 5j: resign shortcut at the prompt. Confirm before exiting.
+      if (['r', 'resign'].includes(firstLine.trim().toLowerCase())) {
+        const confirm = (await reader.prompt('  Resign? The regime will be recorded as player-quit. (y/N): ')).trim().toLowerCase();
+        if (confirm === 'y' || confirm === 'yes') {
+          outcome = 'player-quit';
+          resignedThisTurn = true;
+          // Skip the rest of the turn — jump straight to the run-end flow.
+          break;
+        }
+        // Confirmation declined — fall through to the normal move flow.
+        console.log('  (resign cancelled — continuing.)');
+      }
 
       if (firstLine.trim().toLowerCase() === 'a') {
         // Advisor flow
@@ -447,23 +478,36 @@ async function runInteractive({ maxTurns = MAX_TURNS, model = process.env.OPENRO
         if (idx >= 0 && idx < ADVISOR_VOICES.length) {
           advisorUsed = ADVISOR_VOICES[idx];
           // Get the short version for the loop
-          const shortAdvisor = await consultAdvisorShort(advisorUsed, crisis, state);
+          const shortAdvisor = await consultAdvisorShort(advisorUsed, crisis, state, identity);
           // Get the full version for the run log
           advisorFullResponse = await consult({
             voice: advisorUsed,
             crisis,
             state: { ...state },
             playerMove: '[player is consulting before writing their move]',
+            identity,
           });
           console.log('');
           console.log('  Advisor (' + advisorUsed + '):');
           console.log('  ' + wrap(shortAdvisor, 68).split('\n').map(l => '  ' + l).join('\n').trim());
           console.log('');
-          // Now ask for the multi-line move
+          // Now ask for the multi-line move. ::resign inside the buffer
+          // also triggers the resign exit (no confirmation — typing it
+          // deliberately inside the move is itself the confirmation).
           playerMove = await reader.promptMove('  Your move:');
+          if (playerMove.trim() === '::resign') {
+            outcome = 'player-quit';
+            resignedThisTurn = true;
+            break;
+          }
         } else {
           console.log('  (invalid choice; writing your own move)');
           playerMove = await reader.promptMove('  Your move:');
+          if (playerMove.trim() === '::resign') {
+            outcome = 'player-quit';
+            resignedThisTurn = true;
+            break;
+          }
         }
       } else {
         // The first line of the move is the line the player already typed.
@@ -487,6 +531,15 @@ async function runInteractive({ maxTurns = MAX_TURNS, model = process.env.OPENRO
           }
         }
         playerMove = collected.filter(l => l !== '').join('\n').trim();
+        // ::resign inside the multi-line buffer triggers the resign exit.
+        // We accept it as the ONLY line — a move that's entirely ::resign
+        // is unambiguous; ::resign embedded inside real policy prose is
+        // treated as ordinary text (matches the user's literal intent).
+        if (playerMove === '::resign') {
+          outcome = 'player-quit';
+          resignedThisTurn = true;
+          break;
+        }
       }
 
       if (!playerMove) {
@@ -529,6 +582,7 @@ async function runInteractive({ maxTurns = MAX_TURNS, model = process.env.OPENRO
             turnHistory,
             seedFragment,
             actor,
+            identity,
           }),
           { atmospherics: atmospheric, corpusQuote },
         );
@@ -547,6 +601,7 @@ async function runInteractive({ maxTurns = MAX_TURNS, model = process.env.OPENRO
             state: { ...state },
             playerMove,
             turnHistory,
+            identity,
           }),
           { atmospherics: atmospheric, corpusQuote },
         );
@@ -647,17 +702,22 @@ async function runInteractive({ maxTurns = MAX_TURNS, model = process.env.OPENRO
     // Cycle 5e: post-game narrator. Generates the end-of-run report that
     // makes the run feel like a story, not a debrief. Principle 6's litmus
     // test depends on this report's quality.
+    // For player-quit, use turns.length so the count matches the actual
+    // recorded turns (the resigned turn was not recorded).
+    const effectiveTurnsCompleted = outcome === 'player-quit' ? turns.length : turn;
     const report = await narrateRunEnd({
       outcome,
-      turnsCompleted: turn,
+      turnsCompleted: effectiveTurnsCompleted,
       finalState: state,
       turns,
       collapse,
+      identity,
     });
     console.log(renderEndOfRunReport(report, {
       outcome,
-      turnsCompleted: turn,
+      turnsCompleted: effectiveTurnsCompleted,
       finalState: state,
+      identity,
       bands: withBands(state),
     }));
   } finally {
@@ -673,10 +733,20 @@ async function runInteractive({ maxTurns = MAX_TURNS, model = process.env.OPENRO
     endedAt,
     model,
     outcome,
-    turnsCompleted: turn,
+    // Cycle 5j: for player-quit, the resigned turn was not recorded
+    // (no move was written), so turnsCompleted = turns.length.
+    // For other outcomes, the turn was incremented at the top of the
+    // loop and recorded at the bottom, so turn === turns.length.
+    turnsCompleted: outcome === 'player-quit' ? turns.length : turn,
     turns,
     finalState: state,
     fallbackWarnings,
+    // Cycle 5h: identity captured at the start of the run. Threaded
+    // through to the artifact generator and post-game narrator so the
+    // run report and the shareable artifact refer to the player and
+    // regime by their chosen names.
+    player: identity.player,
+    regime: identity.regime,
   };
 
   console.log('');

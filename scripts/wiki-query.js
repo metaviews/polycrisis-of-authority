@@ -248,6 +248,25 @@ function extractQuote(page) {
   // by whitespace or end of string). The regex is loose; we filter afterwards.
   const candidates = [];
   const sentences = page.content.split(/(?<=[.!?])\s+/);
+  // Cycle 5i: meta-doc marker filter. Even when wiki/mechanics/ entries
+  // slip through the path filter in pickCorpusQuote, individual sentences
+  // that smell like project documentation (referencing internal files,
+  // sections, cycle numbers, version stamps) are rejected here. These
+  // markers never appear in substantive corpus prose.
+  const META_PATTERNS = [
+    /\bdocs\//,           // filename references like docs/08-crisis-anatomy.md
+    /\bwiki\/[a-z]+\//,   // cross-references to other wiki sections
+    /§/,                  // section symbol
+    /\bAuthored per\b/,   // authoring markers
+    /\bLast updated\b/,
+    /\bCycle \d/,         // project version markers like "Cycle 5h"
+    /\bPhase \d/,
+    /\bPrinciple \d/,
+    /\bMVP-/,
+    /\b\d+\.\d+\.\d+\b/,  // semver versions
+    /^\s*`/,             // lines starting with backtick
+    /`[^`]*\.md`/,        // inline code with .md files
+  ];
   for (const s of sentences) {
     const trimmed = s.trim();
     // Skip headings, list items, blank lines, very short or very long sentences
@@ -255,6 +274,8 @@ function extractQuote(page) {
     if (trimmed.startsWith('#') || trimmed.startsWith('-') || trimmed.startsWith('*')) continue;
     if (trimmed.startsWith('|')) continue; // table row
     if (trimmed.startsWith('---')) continue; // frontmatter delimiter
+    // Reject sentences that match any meta-doc marker.
+    if (META_PATTERNS.some((re) => re.test(trimmed))) continue;
     candidates.push(trimmed);
   }
   if (candidates.length === 0) return null;
@@ -267,27 +288,44 @@ function extractQuote(page) {
  * Cycle 5e: pick a single random wiki quote for the spinner. Used by the
  * interactive CLI to add corpus-grounded texture to the LLM wait.
  *
+ * Cycle 5i: restricted the candidate pool to substantive corpus sections
+ * only. Previously the pool included `mechanics/`, `prototypes/`, and
+ * project-doc index entries — these contain sentences like "Authored per
+ * `docs/08-crisis-anatomy.md` § Crisis 5" that leaked into the spinner as
+ * apparent corpus quotes, confusing the player (the doc references speak
+ * to how the simulation is built, not what it governs).
+ *
+ * Substantive sections: concepts/, entities/, themes/, signals/. The
+ * extractQuote function also has a defense-in-depth meta-doc marker
+ * filter in case any meta-doc slips through the path filter.
+ *
  * @param {string|null} preferHref - optional wiki path to prefer (e.g. one
  *   of the world's grounding entries); falls back to any page if the
  *   preferred one has no extractable sentence.
  * @returns {{text: string, href: string, title: string}|null}
  */
+const SUBSTANTIVE_SECTIONS = new Set(['concepts/', 'entities/', 'themes/', 'signals/']);
+
 function pickCorpusQuote(preferHref = null) {
   try {
     const content = fs.readFileSync(INDEX_PATH, 'utf8');
     const pages = parseWikiIndex(content);
     if (pages.length === 0) return null;
-    // Try the preferred href first
+    // Try the preferred href first (only if it's in a substantive section)
     if (preferHref) {
-      const preferred = pages.find(p => p.href === preferHref);
-      if (preferred) {
-        const pageContent = readSelectedPages([preferred], WIKI_DIR)[0];
-        const quote = extractQuote(pageContent);
-        if (quote) return { text: quote, href: preferred.href, title: preferred.title };
+      const isSubstantive = Array.from(SUBSTANTIVE_SECTIONS).some((s) => preferHref.startsWith(s));
+      if (isSubstantive) {
+        const preferred = pages.find(p => p.href === preferHref);
+        if (preferred) {
+          const pageContent = readSelectedPages([preferred], WIKI_DIR)[0];
+          const quote = extractQuote(pageContent);
+          if (quote) return { text: quote, href: preferred.href, title: preferred.title };
+        }
       }
     }
-    // Pick a random page (avoid signals/ which are news-y and have shorter content)
-    const candidates = pages.filter(p => !p.href.startsWith('signals/'));
+    // Restrict candidate pool to substantive sections.
+    const candidates = pages.filter(p => Array.from(SUBSTANTIVE_SECTIONS).some((s) => p.href.startsWith(s)));
+    if (candidates.length === 0) return null;
     const shuffled = candidates.slice().sort(() => Math.random() - 0.5);
     for (const p of shuffled.slice(0, 5)) {
       const pageContent = readSelectedPages([p], WIKI_DIR)[0];
