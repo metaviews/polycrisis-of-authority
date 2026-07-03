@@ -411,3 +411,16 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Build plan:** 7 steps, each a playable increment, 5 days total to v1. Starts with bot skeleton + `ping` command (step 1, ~30 minutes).
 - **Effort:** v1 (one player, no sqlite) = 3-4 days. v2 (multi-player, sqlite) = +2 days = 5-6 days. Web is the next phase after discord, informed by multi-player feedback.
 - **Next:** the user is doing more terminal playthroughs to look for other changes. When they signal "start the discord build," cycle 5f begins with step 1 of the build plan.
+
+## 2026-07-03 — Cycle 6a: Discord bot skeleton (step 1 of 7)
+
+- **Action:** Filed `src/bot/bot.js`, `package.json`, `docs/14-discord-bot-setup.md`, and updated `.env.example` + `.gitignore`. This is step 1 of the 7-step build plan in `docs/13-discord-bot-architecture.md`.
+- **Bot skeleton (`src/bot/bot.js`):** single-file entrypoint, ~120 lines. Reads `DISCORD_BOT_TOKEN` / `DISCORD_CLIENT_ID` / `DISCORD_GUILD_ID` from `process.env`. Registers a single `/ping` slash command on startup (guild-scoped if `DISCORD_GUILD_ID` is set, instant; global otherwise, ~1hr propagation). Connects to the gateway via discord.js v14. Handles SIGINT/SIGTERM and `unhandledRejection`. No simulation engine integration yet.
+- **Intents declared:** `Guilds`, `GuildMessages`, `MessageContent` (privileged — enabled in dev portal per the setup doc), `DirectMessages`. MessageContent is declared now even though step 1 doesn't need it, to avoid re-auth mid-build.
+- **Setup flow (`docs/14-discord-bot-setup.md`):** 7-step developer guide. Create app → create bot user → enable MessageContent intent → get/create test server → invite via OAuth2 URL with minimum perms → fill `.env` → run `npm run bot`. Documented exit criteria for step 1.
+- **Permissions:** minimum perms only — Send Messages, Embed Links, Attach Files, Use External Emoji, Add Reactions, Read Message History, Manage Threads. No admin, no kick/ban, no role management.
+- **Engine refactor deferred:** the simulation engine stays untouched in step 1. The refactor for surface-adapter integration is planned for the cycle 6b conversation.
+- **Known issue:** `npm audit` reports 4 vulnerabilities in the `undici` chain used by `@discordjs/rest`. Fix requires downgrading discord.js to v13 (contradicts spec's v14 pin). Accepted risk for v1; vectors aren't reachable in normal bot operation.
+- **Verified:** `/tmp/hermes-verify-6a-discord-skeleton.sh` — 8 checks pass. Live-run check (gateway connect + `/ping`) requires real credentials and is done manually by the user.
+- **Filed:** `wiki/prototypes/2026-07-03-cycle-6a-discord-skeleton.md` documents the cycle.
+- **Next:** confirm step 1 lands (real gateway connect + `/ping` reply) before starting step 2 (`/polycrisis start`). Step 2 is the first step that touches the simulation engine; cycle 6b's planning conversation will design the surface-adapter refactor.
