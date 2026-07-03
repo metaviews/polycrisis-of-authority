@@ -29,8 +29,13 @@ const {
   buildPingReply,
   buildPolycrisisStartReply,
   STEP2_FOLLOWUP_TEXT,
+  STEP3_HINT_TEXT,
   ALREADY_ACTIVE_TEXT,
 } = require('./commands');
+
+const { createDiscordSurface } = require('./surface');
+const { runLoop } = require('../sim/run-loop');
+const { formatCrisisForDiscord } = require('../sim/surface');
 
 // ---------------------------------------------------------------------------
 // config
@@ -103,8 +108,74 @@ async function handlePolycrisisStart(interaction) {
     await interaction.editReply({ embeds: [result.embed] });
   }
 
-  // Followup hint about what's not yet implemented (steps 3+).
-  await interaction.followUp({ content: STEP2_FOLLOWUP_TEXT, ephemeral: true });
+  // Followup hint about free-text move handling (cycle 6c).
+  await interaction.followUp({ content: STEP3_HINT_TEXT, ephemeral: true });
+
+  // Spawn the run loop in the background. The loop calls
+  // surface.readMove which uses a MessageCollector to await the player's
+  // next message. The slash command handler returns immediately; the loop
+  // resolves (or rejects) at run end and removes the entry from activeRuns.
+  //
+  // We catch errors here so an unhandled rejection in the loop doesn't
+  // crash the bot process. The error is logged; the run state is cleaned up.
+  runDiscordLoop(interaction, result).catch((err) => {
+    console.error(`[bot] runDiscordLoop failed for ${result.key}:`, err);
+    activeRuns.delete(result.key);
+  });
+}
+
+/**
+ * runDiscordLoop: build a discord surface for the channel and run the
+ * shared simulation engine loop against it. The loop owns the player's
+ * input via surface.readMove (a MessageCollector on the channel).
+ *
+ * @param {import('discord.js').ChatInputCommandInteraction} interaction
+ *   The original /polycrisis start interaction (used for channel + user).
+ * @param {object} startResult
+ *   The result of buildPolycrisisStartReply. Must be { kind: 'started', ... }.
+ */
+async function runDiscordLoop(interaction, startResult) {
+  const channel = interaction.channel;
+  if (!channel) {
+    throw new Error('runDiscordLoop: interaction.channel is missing');
+  }
+  const user = interaction.user;
+
+  const surface = createDiscordSurface({
+    channel,
+    client,
+    activeUser: { id: user.id, tag: user.tag },
+  });
+
+  try {
+    await runLoop({
+      surface,
+      model: process.env.OPENROUTER_MODEL || 'minimax/minimax-m3',
+      // identity is null for step 3 (no /start as:<name> option yet).
+      // The loop's formatter handles null identity by leaving the
+      // description empty; the run log uses default "the player" / "the regime".
+      identity: null,
+      renderTurn: formatCrisisForDiscord,
+    });
+  } catch (err) {
+    // readMove timeout (player-quit after 10 min idle) or any other loop error.
+    // Surface it to the player as a plain-text message so they know what happened.
+    // Use a fresh channel.send (not surface.print) because the surface is being
+    // torn down by runLoop's finally block.
+    try {
+      await channel.send(
+        `_(Run ended: ${err.message})_\n` +
+        `Type \`/polycrisis start\` to begin a new run.`
+      );
+    } catch (sendErr) {
+      console.error('[bot] failed to send run-end error message:', sendErr);
+    }
+    throw err; // Re-throw so the caller's catch logs it.
+  } finally {
+    // Always clean up the activeRuns entry. This is critical: if we don't,
+    // the player can't /start a new run until bot restart.
+    activeRuns.delete(startResult.key);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -123,7 +194,7 @@ const client = new Client({
 client.once('ready', (c) => {
   console.log(`[bot] ready — logged in as ${c.user.tag} (id=${c.user.id})`);
   console.log(`[bot] watching ${c.guilds.cache.size} guild(s)`);
-  console.log('[bot] step 2 complete: /polycrisis start posts turn 1 as an embed. /ping still works.');
+  console.log('[bot] step 3 complete: /polycrisis start runs the loop end-to-end; type your move as a message.');
 });
 
 client.on('interactionCreate', async (interaction) => {
@@ -204,4 +275,8 @@ module.exports = {
   buildPingReply,
   buildPolycrisisStartReply,
   activeRuns,
+  // runDiscordLoop is exported so verification scripts can test the
+  // bot's loop-spawning logic with a mock interaction + channel.
+  // (Tests stub client and surface; they don't actually connect to discord.)
+  runDiscordLoop,
 };

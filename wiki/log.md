@@ -442,3 +442,23 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Verified:** 53 of 53 checks pass. Walkthrough regressions: 5f=10, 5g=10, 5h=17, 5j=14.
 - **Filed:** `wiki/prototypes/2026-07-03-cycle-6b-discord-start.md` documents the cycle.
 - **Next:** user runs `/polycrisis start` in their test server per `docs/14-discord-bot-setup.md` step 2. Confirms step 2 lands. Cycle 6c (step 3): wire discord surface.readMove via MessageCollector; invoke `runLoop` from the `/polycrisis start` handler; turn 2+ flow. The 5i pre-existing failure should be addressed in a separate follow-up cycle.
+
+## 2026-07-03 — Cycle 6c: Discord free-text move handling (step 3 of 7)
+
+- **Action:** Filed changes to `src/bot/surface.js`, `src/sim/run-loop.js`, `src/bot/bot.js`, `src/bot/commands.js`. Updated `docs/14-discord-bot-setup.md` with step 3 section.
+- **Discord surface.readMove (real implementation):** MessageCollector-based. One message = one move. Author filter (only the active user). Bot-message filter. System-message filter. 10-minute default timeout (configurable). `createDiscordSurface` now requires `client` + `activeUser` in addition to `channel`.
+- **singleMessage flag:** discord surface exposes `singleMessage: true`. The shared loop's `readPlayerMove` checks this flag and skips the multi-line continuation branch + the `a`/`r` shortcut detection (those are TTY-only affordances).
+- **runPlayerMove single-message branch:** one `readMove` call returns the complete move. `::resign` recognition still runs (case-insensitive, trimmed). If the move is exactly `::resign`, the loop exits with `outcome: player-quit`.
+- **runDiscordLoop helper:** builds a discord surface for the channel, calls `runLoop({ surface, identity: null, renderTurn: formatCrisisForDiscord })`, cleans up `activeRuns` in a finally block. Spawned in the background by `/polycrisis start` so the slash command returns immediately.
+- **Loop runs end-to-end on discord:** turn 1 → player move → turn 2 → ... → collapse / stabilization / max-turns. Collapse announcements + artifact writing happen via `surface.print` (plain text on discord). Step 5 (cycle 6e) will upgrade these to embeds + file attachments.
+- **Typing indicator:** discord's built-in "Bot is typing..." handles the LLM wait. `waitWhileLLM` posts the indicator and refreshes every 5s.
+- **STEP3_HINT_TEXT:** new hint message tells the player "type your policy as a message in this channel. Send `::resign` to end the run. The run ends after a collapse or ~10 minutes of inactivity."
+- **ALREADY_ACTIVE_TEXT updated:** now says "type your next move as a message to continue, or send `::resign` to end the run."
+- **Ready log updated:** "step 3 complete: /polycrisis start runs the loop end-to-end; type your move as a message."
+- **Verification scripts:**
+  - `/tmp/hermes-verify-6c-discord-moves.sh` (new): 31 checks, all pass. Covers discord surface adapter (readMove filter, timeout, stubs for readChoice/Confirm), readPlayerMove single-message branch, runDiscordLoop integration, setup doc, 6 regressions.
+  - `/tmp/hermes-verify-6b-discord-start.sh` (updated): surface-shape mocks now provide `client` and `activeUser` (the new required args). Added a check for `singleMessage: true`.
+- **Live-run confirmation skipped** per the user's note. This is a judgment call worth flagging: the cycle-6b live-run was the canonical "step 2 lands" gate, and we proceeded without it. Any discord-specific bug that the live run would have surfaced (e.g. embed field rejection) won't be caught until cycle 6d or later. Documented in the prototype doc.
+- **Verified:** 31 of 31 checks pass. Regressions: 6a=17, 6b=54, 5f=10, 5g=10, 5h=17, 5j=22 (5j has 1 cascading 5i pre-existing fail, allowed ≤2).
+- **Filed:** `wiki/prototypes/2026-07-03-cycle-6c-discord-moves.md` documents the cycle.
+- **Next:** cycle 6d (step 4) — advisor buttons. `surface.readChoice` posts 5 buttons (one per advisor voice). `bot.js` adds a `/polycrisis advisor` slash command. Step 5 upgrades end-of-run to embeds + file attachments.

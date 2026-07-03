@@ -175,6 +175,51 @@ For step 2, the bot has no `/polycrisis end` shortcut, so if you want to abandon
 
 Confirm step 2 to proceed to step 3 (free-text move handling in DMs — typing the indicator handles the LLM wait).
 
+## Step 3 — Free-text move handling
+
+Once step 2 lands (the bot posts the turn-1 crisis embed), restart the bot:
+
+```
+npm run bot
+```
+
+Expected output (truncated):
+
+```
+[bot] registered 2 command(s) as GUILD commands in <guild id> (instant)
+[bot]   - /ping
+[bot]   - /polycrisis <subcommand>
+[bot] ready — logged in as <bot tag> (id=…)
+[bot] watching 1 guild(s)
+[bot] step 3 complete: /polycrisis start runs the loop end-to-end; type your move as a message.
+```
+
+In your discord test server (or in a DM with the bot):
+
+1. Type `/polycrisis start`. The bot posts the turn-1 crisis as an embed and an ephemeral followup explaining how to submit moves.
+2. Type your policy as a message in the same channel/DM. The bot shows "Bot is typing..." while the LLM interprets your move (15–30s typical).
+3. The bot posts turn 2's crisis as a new embed. Repeat from step 2.
+4. The run ends when the regime collapses, when the run reaches the dynamic turn cap, or after ~10 minutes of inactivity (treated as player-quit).
+
+### Key behaviors (cycle 6c)
+
+- **One message = one move.** Discord chat doesn't have a "blank line ends the move" affordance; each message you send in the channel becomes one move. For long policies, paste the whole text into a single message (Shift+Enter on desktop).
+- **Other users' messages are ignored.** The bot only accepts moves from the user who started the run in this channel/DM.
+- **Slash commands always win.** Typing `/ping` while a run is active runs the ping command and doesn't disrupt the loop.
+- **`::resign` to end a run.** Send a message containing exactly `::resign` (no other text) to end the run immediately. No confirmation prompt (deliberate: typing it is the confirmation).
+- **Identity defaults.** For step 3, the simulation uses "the player" / "the regime" defaults — there's no `/polycrisis start as:<name>` option yet. Identity capture will land in a later step.
+
+### What "step 3 complete" means
+
+- [ ] `/polycrisis start` posts the crisis embed + an ephemeral hint
+- [ ] Typing a policy message triggers the typing indicator and produces turn 2's crisis
+- [ ] Multiple turns can be played in one session
+- [ ] A collapse / stabilization / max-turns end fires the artifact-writing flow (artifact files appear in `./runs/`)
+- [ ] `/polycrisis start` again is allowed after the previous run ends
+- [ ] Sending `::resign` ends the run cleanly
+
+Confirm step 3 to proceed to step 4 (advisor buttons — `/polycrisis advisor` shows 5 buttons; click posts the advisor's response).
+
 ## Related docs
 
 - `docs/13-discord-bot-architecture.md` — the architecture spec this setup doc implements

@@ -9,9 +9,16 @@
  * intermixed with console.log calls and readline reads. The terminal surface
  * was the only one that worked.
  *
- * Cycle 6b extracts the loop into this module. The loop takes a `surface`
+ * Cycle 6b extracted the loop into this module. The loop takes a `surface`
  * adapter (see src/sim/surface.js for the contract) and calls surface.print,
  * surface.readMove, etc., instead of touching stdout or stdin directly.
+ *
+ * Cycle 6c adds `surface.singleMessage` handling: surfaces that set this flag
+ * (e.g. discord) skip the multi-line continuation flow — one readMove call
+ * returns the complete move. The `a`/`r` shortcut detection and the
+ * blank-line-to-submit flow are TTY-only affordances; discord's chat model
+ * (one message = one move) doesn't need them. Advisors and resign become
+ * buttons / slash commands on discord (steps 4+).
  *
  * The TTY surface is constructed by src/sim/interactive.js's createReader +
  * stdout wrapper; the discord surface is constructed by src/bot/surface.js.
@@ -36,11 +43,11 @@
  *      block; discord: embed).
  *   4. Write the run log + artifact files to ./runs/. Both surfaces share this.
  *
- * Note on step 2 (cycle 6b): the discord surface is intentionally partial.
- * Only surface.print and surface.close are implemented. The read methods throw
- * "not yet implemented", which means the discord version of runLoop() can
- * complete step 2's scope (display turn 1) but cannot yet drive the loop
- * past turn 1.
+ * For step 3 (cycle 6c): the discord version of runLoop() runs end-to-end
+ * (turn 1, player move via readMove, turn 2, ... collapse or max-turns).
+ * Collapse announcements + artifact writing happen via surface.print, which
+ * the discord surface renders as plain text. Step 5 will upgrade the
+ * end-of-run experience to embeds + file attachments.
  */
 
 const fs = require('fs');
@@ -429,7 +436,20 @@ async function runLoop(options) {
 // ---------------------------------------------------------------------------
 
 async function readPlayerMove(surface, crisis, state, identity, advisorVoices, consultAdvisorShort) {
-  // First-line prompt: move OR shortcut (`a` for advisor, `r` for resign).
+  // Cycle 6c: single-message surfaces (e.g. discord) skip the multi-line
+  // continuation flow. One readMove call returns the complete move. The
+  // `a`/`r` shortcuts are TTY-only affordances; on discord, advisors will
+  // be buttons (step 4) and resign will be a slash command / button
+  // (step 4+).
+  if (surface.singleMessage) {
+    const moveText = await surface.readMove({ header: 'Your move:' });
+    if ((moveText || '').trim().toLowerCase() === '::resign') {
+      return { playerMove: null, advisorUsed: null, advisorFullResponse: null, resignedThisTurn: true, outcome: 'player-quit' };
+    }
+    return { playerMove: moveText, advisorUsed: null, advisorFullResponse: null, resignedThisTurn: false };
+  }
+
+  // First-line prompt: move OR shortcut (`a` for advisor, `r` to resign).
   const firstLineRaw = await surface.readMove({ header: 'Your move (or `a` for an advisor, `r` to resign):' });
   // TTY reader uses prompt(); some surfaces return a single line, others
   // return the full buffer. Standardize by splitting on newlines.

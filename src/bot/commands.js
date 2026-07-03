@@ -162,15 +162,25 @@ function buildPolycrisisStartReply(interaction, { seedVariants = SEED_VARIANTS }
   return { kind: 'started', seed, crisis, embed, key, runId, warning: seedWarning };
 }
 
-// Step-2 followup hint for the bot to send after the embed.
+// Step-2 followup hint for the bot to send after the embed (deprecated in 6c;
+// STEP3_HINT_TEXT replaces it once free-text moves work).
 const STEP2_FOLLOWUP_TEXT =
   '_Step 2 ships the crisis display only. Free-text move handling ' +
   'arrives in step 3 (cycle 6c) — for now, type `/ping` or `/polycrisis start` again._';
 
+// Step-3 hint: tells the player to type their policy as a message in the channel.
+// The bot's MessageCollector (inside surface.readMove) is waiting for the next
+// message from this user. The "this is a move" framing is important — players
+// might otherwise expect menu-style interaction.
+const STEP3_HINT_TEXT =
+  '_Type your policy as a message in this channel. The simulation will interpret your words and ' +
+  'post the next crisis. Send `::resign` to end the run (no confirmation required). ' +
+  'The run ends after a collapse or ~10 minutes of inactivity._';
+
 // Already-active message text (sent as ephemeral reply).
 const ALREADY_ACTIVE_TEXT =
   'You already have an active run in this channel. ' +
-  'Step 3 (cycle 6c) will add a `/polycrisis end` shortcut. ' +
+  'Type your next move as a message to continue, or send `::resign` to end the run. ' +
   'For now, the run state is in-memory and resets on bot restart.';
 
 module.exports = {
@@ -186,5 +196,6 @@ module.exports = {
   buildPolycrisisStartReply,
   // Display text
   STEP2_FOLLOWUP_TEXT,
+  STEP3_HINT_TEXT,
   ALREADY_ACTIVE_TEXT,
 };
