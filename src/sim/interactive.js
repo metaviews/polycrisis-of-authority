@@ -44,6 +44,7 @@ const { generateArtifact } = require('./artifact-generator');
 const { renderArtifactHtml } = require('./artifact-render');
 const { formatStateBlock, formatStateCompact, formatDeltaBlock, formatVisibleSignalsDisplay, computeVisibleSignals } = require('./state-display');
 const { wrap } = require('./cli-format');
+const { selectAtmospherics } = require('./atmospherics');
 
 const ROOT_DIR = path.join(__dirname, '..', '..');
 
@@ -134,60 +135,102 @@ function createReader() {
 // The spinner appears on a fresh line below whatever the player just typed,
 // rotates while the function runs, and is cleared when the function returns.
 // In piped (non-TTY) mode, prints a single static line instead of rotating.
-async function withSpinner(reader, message, fn, { quote = null } = {}) {
-  // Cycle 5e: if a corpus quote is provided, display it below the spinner
-  // message. The quote gives the LLM wait some texture beyond the pendulum
-  // dot. The quote is informational — it's a sentence from the corpus that
-  // the LLM may draw on this turn.
-  const quoteLines = quote ? wrap(`"${quote.text}"`, 68).split('\n').map(l => '  ' + l).join('\n') : null;
+//
+// Cycle 5f: the wait state now shows two layers, in order:
+//   1. atmospherics — a short indirect line from atmospherics.js
+//   2. corpus quote — an informational quote from wiki/signals/ (optional)
+// Both are width-budgeted to fit a 70-column terminal after indent.
+async function withSpinner(reader, message, fn, { atmospherics = null, corpusQuote = null } = {}) {
+  // Render budget: terminal can be as narrow as 60 cols. The prose block
+  // wraps at 68 (after a 2-char indent, so rendered width is 70). The
+  // spinner / quote / atmospherics stay inside that same 70-col budget
+  // so they never overflow into adjacent output.
+  const INDENT = '  ';
+  const COL_BUDGET = 70; // rendered width including the indent
+  const WRAP_WIDTH = COL_BUDGET - INDENT.length; // 68
+
+  // Helper: wrap a string at WRAP_WIDTH, then prepend INDENT to each line.
+  // Indent is applied AFTER wrap so wrapped line widths stay ≤ COL_BUDGET.
+  function renderBlock(text) {
+    if (!text) return null;
+    const wrapped = wrap(text, WRAP_WIDTH);
+    return wrapped.split('\n').map((l) => INDENT + l).join('\n');
+  }
+
+  // Atmospherics: short, no title, no attribution. Just the line.
+  const atmosphericsBlock = renderBlock(atmospherics);
+
+  // Corpus quote: title line + wrapped body.
+  const corpusQuoteBody = corpusQuote ? renderBlock(`"${corpusQuote.text}"`) : null;
+  const corpusQuoteTitle = corpusQuote ? `${INDENT}─ ${corpusQuote.title}` : null;
+
+  // Count lines of each block (for the cleanup pass).
+  // atmospherics: N lines where N = number of wrapped lines
+  // corpus quote: 1 title + N body lines
+  function countLines(block) {
+    if (!block) return 0;
+    return block.split('\n').length;
+  }
+  const atmosphericsLineCount = countLines(atmosphericsBlock);
+  const corpusQuoteLineCount = (corpusQuote ? 1 : 0) + countLines(corpusQuoteBody);
+
   if (!reader.isTTY) {
     reader.print(`  ${message}\n`);
-    if (quoteLines) {
-      reader.print(`  ─ ${quote.title}\n${quoteLines}\n`);
+    if (atmosphericsBlock) {
+      reader.print(atmosphericsBlock + '\n');
+    }
+    if (corpusQuote) {
+      reader.print(corpusQuoteTitle + '\n' + corpusQuoteBody + '\n');
     }
     return await fn();
   }
-  // TTY mode: pendulum spinner
+
+  // TTY mode: pendulum spinner.
   // The message is followed by 5 dot-position spaces; the dot oscillates
   // through them. The dot is NEVER placed inside the message text — the
   // message is always intact.
   const dotPositions = [0, 1, 2, 3, 4, 3, 2, 1];
-  const prefix = '  ' + message + ' ';
+  const prefix = INDENT + message + ' ';
   const totalLen = prefix.length + 4; // 4 dot-position spaces
   const renderFrame = (dotPos) => {
     let line = prefix;
-    // Pad with spaces to total length
     while (line.length < totalLen) line += ' ';
-    // Place the dot at position (totalLen - 4 + dotPos). The dot is always
-    // in the trailing space region, never overlapping the message.
     const dotIdx = totalLen - 4 + dotPos;
     return line.slice(0, dotIdx) + '·' + line.slice(dotIdx + 1);
   };
+
+  // Track how many lines we print below the spinner so the cleanup pass
+  // can move up the right number of lines.
   let frameIdx = 0;
   let stopped = false;
-  // Print the first frame immediately, then the quote lines below it.
+  // Print the first frame immediately, then the layers below it.
+  // The initial print ends in '\n' so the spinner sits on its own line.
   reader.print(renderFrame(dotPositions[0]) + '\n');
-  if (quoteLines) {
-    reader.print(`  ─ ${quote.title}\n${quoteLines}\n`);
-    // We now have 1 (spinner) + 2 (quote title + body) lines printed.
-    // Track how many extra lines we need to clear when done.
+  if (atmosphericsBlock) {
+    reader.print(atmosphericsBlock + '\n');
   }
-  // Track how many lines need to be cleared when the spinner finishes.
-  // Spinner is always 1 line. Quote, if present, is (1 + N) lines where N
-  // is the wrapped line count.
-  const quoteLineCount = quoteLines ? 2 + wrap(`"${quote.text}"`, 68).split('\n').length : 0;
-  const totalLinesToClear = 1 + quoteLineCount;
-  // The cursor is now at the start of the line BELOW everything we just
-  // printed. To update the spinner, we move up (1 + quoteLineCount) lines.
-  const linesToMoveUp = totalLinesToClear;
+  if (corpusQuote) {
+    reader.print(corpusQuoteTitle + '\n' + corpusQuoteBody + '\n');
+  }
+
+  const linesBelowSpinner = atmosphericsLineCount + corpusQuoteLineCount;
+  const linesToMoveUp = 1 + linesBelowSpinner;
+
+  // The tick overwrites the spinner line in place — NO trailing newline.
+  // This is the difference vs cycle 5f's spinner: previous version added
+  // one line of scrollback per tick because the redraw ended with '\n'.
+  // Across a 15-turn run that's ~30-60 phantom lines accumulating between
+  // the player and the next turn's prose, which read as 'interpreting
+  // your move keeps showing up the page.'
   const tick = async () => {
     while (!stopped) {
       await new Promise(r => setTimeout(r, 800));
       if (stopped) break;
       frameIdx = (frameIdx + 1) % dotPositions.length;
-      // Move up to the spinner line, rewrite, move back down
       const upSeq = '\x1b[' + linesToMoveUp + 'A';
-      reader.print(upSeq + '\r' + renderFrame(dotPositions[frameIdx]) + '\n');
+      // \r returns to col 0 of the spinner line; the rewritten frame
+      // ends with \r (NOT \n) so we stay on the same line.
+      reader.print(upSeq + '\r' + renderFrame(dotPositions[frameIdx]) + '\r');
     }
   };
   const tickPromise = tick();
@@ -196,18 +239,20 @@ async function withSpinner(reader, message, fn, { quote = null } = {}) {
   } finally {
     stopped = true;
     await tickPromise;
-    // Clear the spinner + quote lines: move up, clear with spaces, move down.
-    // We have to clear each line individually because the quote is wrapped
-    // and may have different lengths.
-    const blank = ' '.repeat(totalLen);
+    // Cleanup uses ANSI clear-to-end-of-screen so no scrollback is added.
+    // Previous version wrote (linesBelowSpinner + 1) '\r\n' sequences,
+    // each of which added a phantom line to the terminal scrollback and
+    // separated this turn from the next with blank lines.
+    //
+    // Sequence:
+    //   \x1b[NA  — move cursor up to the spinner line
+    //   \x1b[2K  — clear the entire spinner line
+    //   \x1b[J   — clear from cursor to end of screen (everything below)
+    //   \x1b[NB  — move cursor down past the cleared block, ready for
+    //              the next turn's prose
     const upSeq = '\x1b[' + linesToMoveUp + 'A';
-    reader.print(upSeq + '\r' + blank + '\r\n');
-    if (quoteLines) {
-      // Clear the quote title + body lines too
-      for (let i = 0; i < quoteLineCount; i++) {
-        reader.print('\r' + ' '.repeat(72) + '\r\n');
-      }
-    }
+    const downSeq = '\x1b[' + linesBelowSpinner + 'B';
+    reader.print(upSeq + '\x1b[2K\x1b[J' + downSeq);
   }
 }
 
@@ -227,13 +272,12 @@ function renderCrisisProse(crisis) {
     }
     lines.push('');
   }
-  // If the crisis is from a seed (turn 1), the situation is the seed
-  // fragment; pressure/decision_point are placeholders that will be
-  // generated by the world generator after the player's first move.
-  // For seed-driven crises, show only the seed fragment as situation;
-  // pressure and decision_point are deferred.
+  // Cycle 5g: seed-driven crises (turn 1) now carry a 5-6 sentence
+  // briefing as the situation block. Rendered as a normal Situation
+  // section; Pressure and Decision point are deferred until after the
+  // player's first move (still produced by the world generator).
   if (crisis.fromSeed) {
-    lines.push('  Seed (situation):');
+    lines.push('  Situation:');
     lines.push('  ' + wrap(crisis.situation, 68).split('\n').map(l => '  ' + l).join('\n').trim());
     lines.push('');
     lines.push('  (Pressure and decision point will be generated after your first move.)');
@@ -330,8 +374,9 @@ async function runInteractive({ maxTurns = MAX_TURNS, model = process.env.OPENRO
 
   let state = { ...INITIAL_STATE };
   let turn = 0;
-  const usedSeedIds = []; // Cycle 5d: track seeds used in this run (no repeats)
-  const usedActors = []; // Cycle 5d: track actors used (no repeats within run)
+  let usedSeedIds = []; // Cycle 5d: track seeds used in this run (no repeats)
+  let usedActors = []; // Cycle 5d: track actors used (no repeats within run)
+  let usedAtmospherics = []; // Cycle 5f: track atmospherics lines used (no repeats within run)
   const turns = [];
   let outcome = 'no-collapse';
   let collapse = null;
@@ -460,9 +505,19 @@ async function runInteractive({ maxTurns = MAX_TURNS, model = process.env.OPENRO
 
       let world;
       let usedFallback = false;
-      // Cycle 5e: pick a corpus quote to display alongside the spinner.
-      // Prefer one of the prior turn's grounding entries if available;
-      // otherwise pick a random page.
+      // Cycle 5f: pick the two layers for the wait state.
+      // 1. atmospherics — short indirect line from atmospherics.js.
+      //    Selected by turn, no repeats within this run.
+      // 2. corpus quote — an informational quote from wiki/signals/.
+      //    Prefer one of the prior turn's grounding entries if available;
+      //    otherwise pick a random page.
+      const atmospheric = selectAtmospherics({
+        turnNumber: turn,
+        usedLines: usedAtmospherics,
+      });
+      if (atmospheric) {
+        usedAtmospherics.push(atmospheric);
+      }
       const preferredHref = (priorWorld && priorWorld.grounding_trace && priorWorld.grounding_trace[0]) || null;
       const corpusQuote = pickCorpusQuote(preferredHref);
       try {
@@ -475,7 +530,7 @@ async function runInteractive({ maxTurns = MAX_TURNS, model = process.env.OPENRO
             seedFragment,
             actor,
           }),
-          { quote: corpusQuote },
+          { atmospherics: atmospheric, corpusQuote },
         );
       } catch (worldErr) {
         // Fallback path: LLM world generator failed. Use the static crisis
@@ -493,7 +548,7 @@ async function runInteractive({ maxTurns = MAX_TURNS, model = process.env.OPENRO
             playerMove,
             turnHistory,
           }),
-          { quote: corpusQuote },
+          { atmospherics: atmospheric, corpusQuote },
         );
         world = {
           state_delta: grammarOutput.state_delta,
