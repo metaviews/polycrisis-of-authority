@@ -50,7 +50,10 @@
  */
 
 const MAX_DISCORD_MESSAGE = 2000;
+const MAX_DISCORD_FILE_BYTES = 25 * 1024 * 1024; // 25 MB — discord's bot upload limit
 const DEFAULT_READ_MOVE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+
+const { AttachmentBuilder } = require('discord.js');
 
 function notYetImplemented(method) {
   return () => {
@@ -225,14 +228,127 @@ function createDiscordSurface({ channel, client = null, activeUser = null, timeo
     // it will end naturally on collect / time / close.
   }
 
+  /**
+   * postEndOfRun: posts the end-of-run summary embed + 2 file attachments
+   * (markdown artifact + html artifact) to the channel, followed by a
+   * "play again" hint. Implements surface.postEndOfRun for the discord
+   * surface.
+   *
+   * @param {object} options
+   * @param {object} options.result - the runLoop result
+   * @param {object} options.embed - the embed payload (from
+   *   src/sim/surface.formatEndOfRunEmbed)
+   * @param {object} options.files - { markdown: string, html: string, runLog: string }
+   * @param {object} options.paths - { runLogPath, artifactPath, htmlPath }
+   */
+  async function postEndOfRun({ result, embed, files, paths } = {}) {
+    if (!channel || typeof channel.send !== 'function') {
+      return;
+    }
+    if (!embed) {
+      // Defensive: the loop should always pass an embed. If it doesn't,
+      // fall back to a generic plain-text message rather than crashing.
+      try {
+        await channel.send(
+          `_Run ended: ${result?.outcome || 'unknown'} on turn ${result?.turnsCompleted ?? '?'}._`
+        );
+      } catch (err) {
+        console.error('[bot surface] postEndOfRun fallback failed:', err);
+      }
+      return;
+    }
+
+    // Build attachments from the artifact strings. discord.js expects
+    // Buffers (or file paths / fetch responses) inside AttachmentBuilder.
+    const attachments = [];
+
+    if (typeof files?.markdown === 'string' && files.markdown.length > 0) {
+      try {
+        const buf = Buffer.from(files.markdown, 'utf-8');
+        if (buf.length <= MAX_DISCORD_FILE_BYTES) {
+          attachments.push(
+            new AttachmentBuilder(buf, { name: `${result.runId}-artifact.md` }),
+          );
+        } else {
+          console.warn(
+            `[bot surface] markdown artifact too large to attach (${buf.length} bytes); skipping`,
+          );
+        }
+      } catch (err) {
+        console.error('[bot surface] failed to build markdown attachment:', err);
+      }
+    }
+
+    if (typeof files?.html === 'string' && files.html.length > 0) {
+      try {
+        const buf = Buffer.from(files.html, 'utf-8');
+        if (buf.length <= MAX_DISCORD_FILE_BYTES) {
+          attachments.push(
+            new AttachmentBuilder(buf, { name: `${result.runId}-artifact.html` }),
+          );
+        } else {
+          console.warn(
+            `[bot surface] html artifact too large to attach (${buf.length} bytes); skipping`,
+          );
+        }
+      } catch (err) {
+        console.error('[bot surface] failed to build html attachment:', err);
+      }
+    }
+
+    // runLog is the orchestrator's debug log — not attached per spec (cycle 6e
+    // design point 5). It stays on disk for audit purposes.
+
+    // Post the embed + attachments as a single message. discord.js allows
+    // up to 10 attachments per message; we send 2 (markdown + html).
+    try {
+      await channel.send({
+        embeds: [embed],
+        files: attachments.length > 0 ? attachments : undefined,
+      });
+    } catch (err) {
+      console.error('[bot surface] failed to send end-of-run embed + attachments:', err);
+      // Best-effort fallback: send just the embed's description as plain text.
+      try {
+        const fallback = embed.description
+          ? embed.description.slice(0, 1900)
+          : `Run ended: ${result?.outcome || 'unknown'}`;
+        await channel.send(fallback);
+      } catch (fallbackErr) {
+        console.error('[bot surface] fallback plain-text send also failed:', fallbackErr);
+      }
+      return;
+    }
+
+    // Followup "play again" hint. Sends AFTER the embed so it's the most
+    // recent message in the channel — players see it first when scrolling
+    // up. Text-only, no buttons (the spec calls out a "play again" button
+    // for future cycles; cycle 6e ships the text hint).
+    try {
+      await channel.send(
+        `Run complete. The artifact files are attached above ` +
+        `(\`${result.runId}-artifact.md\` for the canonical markdown, ` +
+        `\`${result.runId}-artifact.html\` for the shareable HTML).\n` +
+        `Type \`/polycrisis start\` to begin a new run.`
+      );
+    } catch (err) {
+      console.error('[bot surface] failed to send play-again hint:', err);
+    }
+  }
+
   return {
     isTTY: false,
     // discord is a single-message surface. The shared runLoop checks this
     // flag in readPlayerMove and skips the multi-line continuation branch.
     singleMessage: true,
+    // cycle 6e: discord surface uses embed-and-files mode at run end.
+    // The runLoop checks this flag and skips the verbose plain-text
+    // "─── Generating artifact ───" + filesystem path listings.
+    endOfRunMode: 'embed-and-files',
     print,
     waitWhileLLM,
     readMove,
+    postEndOfRun,
     close,
     // Read methods that step 4+ will implement.
     readChoice: notYetImplemented('readChoice'),

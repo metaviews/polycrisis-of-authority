@@ -483,3 +483,22 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Verified:** 36 of 36 main checks pass. 6a regression: 17/17. 6b and 6c regressions time out due to **pre-existing walkthrough sub-regression flakiness** (5j → 5i sub-process hangs occasionally) — verified unrelated to 6d via git checkout on cycle-6c baseline.
 - **Filed:** `wiki/prototypes/2026-07-03-cycle-6d-advisor-buttons.md` documents the cycle.
 - **Next:** cycle 6e (step 5) — end-of-run report as embed + artifact file attachments. Cycle 6f (step 6) — `/polycrisis status`. Cycle 6g (step 7) — polish + deployment. The walkthrough sub-regression flakiness should be addressed in a separate follow-up cycle.
+
+## 2026-07-03 — Cycle 6e: Discord end-of-run report + artifact attachments (step 5 of 7)
+
+- **Action:** Filed changes to `src/sim/surface.js`, `src/bot/surface.js`, `src/sim/run-loop.js`. Updated `docs/14-discord-bot-setup.md` with step 5 section.
+- **New `formatEndOfRunEmbed({ result, report, bands })`** in `src/sim/surface.js`: pure formatter that builds a discord.js embed payload from the narrate-run-end report. Title is outcome-flavored ("The regime fell" / "The regime held" / "The run ended" / "You resigned"). Description is the narrative (truncated to 4096 chars). Fields include Outcome, Turns completed, Player/Regime, Key moment (if present), Invitation (if present), Final state (if bands provided), Note (if report.fallback). Color encodes outcome (warm red, muted green, archival neutral, muted gray). Footer is the model name.
+- **New `formatAdvisorResponseEmbed({ voice, response })`**: single-embed wrapper for advisor responses. Used by the discord bot's button click handler.
+- **New `endOfRunMode: 'embed-and-files'` flag on the discord surface:** controls how the runLoop presents end-of-run output. TTY's default mode is `'banner-and-files'` (the existing behavior). Discord explicitly sets the embed mode.
+- **New `postEndOfRun({ result, embed, files, paths })` method on the discord surface:** builds AttachmentBuilder instances from the artifact strings (markdown + html), skips files > 25MB (discord's bot upload limit), posts the embed + attachments as a single message, falls back to plain text on send failure, posts a followup "play again" hint.
+- **Refactored `src/sim/run-loop.js` end-of-run block:** `report` + `effectiveTurnsCompleted` + `endOfRunMode` hoisted outside the `try` block (the artifact-building code runs after `surface.close()`). TTY behavior preserved (`'banner-and-files'` mode prints narrate-run-end + verbose banner + filesystem paths). Discord (`'embed-and-files'`) skips the verbose banner and posts the embed + attachments instead. `formatEndOfRunEmbed` re-exported from run-loop.js for verification scripts.
+- **Embed color encodes outcome:** each outcome type has a distinct color so players learn to read the embed color as a quick signal. Matches the project's archival palette.
+- **Both markdown AND html artifacts attached:** markdown is canonical source; html is shareable. `runLog` (per-turn debug log) stays on disk only — not attached.
+- **Followup hint is plain text** (not a button) for v1.
+- **Files > 25MB skipped** defensively (logs warning). Embed + smaller attachments still post.
+- **Setup doc:** "Step 5 — End-of-run report as embed + artifact attachments" section.
+- **Verification:** `/tmp/hermes-verify-6e-end-of-run.sh` (new) — 32 main checks pass; 6a regression: 17/17. 6b/6c/6d regressions time out due to pre-existing walkthrough sub-regression flakiness.
+- **Live-run confirmation skipped** (same as cycles 6b/6c/6d).
+- **Verified:** 32 of 32 main checks pass (visually verified in the log: 46 PASS, 0 FAIL).
+- **Filed:** `wiki/prototypes/2026-07-03-cycle-6e-end-of-run.md`.
+- **Next:** cycle 6f (step 6) — `/polycrisis status` slash command. Cycle 6g (step 7) — polish + deployment. Walkthrough sub-regression flakiness should be addressed separately.

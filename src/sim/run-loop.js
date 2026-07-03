@@ -63,7 +63,7 @@ const { consult, ADVISOR_VOICES } = require('./advisors');
 const { selectAtmospherics } = require('./atmospherics');
 const { generateArtifact } = require('./artifact-generator');
 const { renderArtifactHtml } = require('./artifact-render');
-const { formatCrisisForTTY, formatCrisisForDiscord } = require('./surface');
+const { formatCrisisForTTY, formatCrisisForDiscord, formatEndOfRunEmbed } = require('./surface');
 
 // cycle 5d: dynamic turn count + stabilization
 const MAX_TURNS = 30;
@@ -174,6 +174,14 @@ async function runLoop(options) {
   let priorWorld = null;
   let fallbackWarnings = 0;
   let consecutiveStableTurns = 0;
+  // End-of-run report + effective turn count. Hoisted outside the try block
+  // so the artifact-building code (which runs after the finally) can reference
+  // them when building the discord embed payload.
+  let report = null;
+  let effectiveTurnsCompleted = 0;
+  // Surface end-of-run mode. Captured at start of run so the artifact-building
+  // code below the finally block can gate the verbose path-listing prints.
+  const endOfRunMode = (surface && surface.endOfRunMode) || 'banner-and-files';
 
   try {
     while (turn < maxTurns) {
@@ -360,9 +368,12 @@ async function runLoop(options) {
       surface.print(`\n  ─── Run complete ───\n  You reached ${turn} turns without collapse or stabilization.`);
     }
 
-    // End-of-run narration.
-    const effectiveTurnsCompleted = outcome === 'player-quit' ? turns.length : turn;
-    const report = await narrateRunEnd({
+    // End-of-run narration. Runs for every outcome (collapse, stabilized,
+    // no-collapse, player-quit). Result is stored in the hoisted `report`
+    // variable so the artifact-building code below the finally block can
+    // include it in the discord embed payload.
+    effectiveTurnsCompleted = outcome === 'player-quit' ? turns.length : turn;
+    report = await narrateRunEnd({
       outcome,
       turnsCompleted: effectiveTurnsCompleted,
       finalState: state,
@@ -370,13 +381,19 @@ async function runLoop(options) {
       collapse,
       identity,
     });
-    surface.print(renderEndOfRunReport(report, {
-      outcome,
-      turnsCompleted: effectiveTurnsCompleted,
-      finalState: state,
-      identity,
-      bands: withBands(state),
-    }));
+
+    // TTY-only: print the rendered report (the full narrate-run-end output).
+    // Discord skips this — its end-of-run embed contains the same content
+    // (formatted via formatEndOfRunEmbed below), plus file attachments.
+    if (endOfRunMode === 'banner-and-files') {
+      surface.print(renderEndOfRunReport(report, {
+        outcome,
+        turnsCompleted: effectiveTurnsCompleted,
+        finalState: state,
+        identity,
+        bands: withBands(state),
+      }));
+    }
   } finally {
     surface.close();
   }
@@ -399,7 +416,7 @@ async function runLoop(options) {
     regime: identity.regime,
   };
 
-  surface.print('\n  ─── Generating artifact ───');
+  // Build artifact files (always, regardless of surface).
   const artifact = generateArtifact(result);
   const runLog = buildRunLog(result);
   const outputDir = path.join(ROOT_DIR, 'runs');
@@ -416,9 +433,40 @@ async function runLoop(options) {
     hashOf: runLog,
   });
   fs.writeFileSync(htmlPath, html);
-  surface.print(`  Run log:    ${runLogPath}`);
-  surface.print(`  Artifact:   ${artifactPath} (${(artifact.length / 1024).toFixed(1)} KB markdown)`);
-  surface.print(`  Shareable:  ${htmlPath} (self-contained HTML, ${(html.length / 1024).toFixed(1)} KB)`);
+
+  // Build the end-of-run embed payload (pure function over result + report).
+  // Always built — TTY ignores it; discord uses it.
+  // `bands` is computed here in case the loop's `withBands(state)` isn't
+  // already cached. (It's pure and cheap.)
+  const bands = withBands(state);
+  const endOfRunEmbedPayload = formatEndOfRunEmbed({
+    result,
+    report,
+    bands,
+  });
+
+  // Surface-specific end-of-run posting.
+  // - TTY ('banner-and-files'): the postEndOfRun is a no-op; the verbose
+  //   banner is printed below.
+  // - Discord ('embed-and-files'): postEndOfRun posts the embed + 2 file
+  //   attachments + play-again hint. The verbose banner is suppressed.
+  if (typeof surface.postEndOfRun === 'function') {
+    await surface.postEndOfRun({
+      result,
+      embed: endOfRunEmbedPayload.embed,
+      files: { markdown: artifact, html, runLog },
+      paths: { runLogPath, artifactPath, htmlPath },
+    });
+  }
+
+  // TTY-only: print the verbose banner with filesystem paths.
+  // Suppressed on discord (or any 'embed-and-files' surface).
+  if (endOfRunMode === 'banner-and-files') {
+    surface.print('\n  ─── Generating artifact ───');
+    surface.print(`  Run log:    ${runLogPath}`);
+    surface.print(`  Artifact:   ${artifactPath} (${(artifact.length / 1024).toFixed(1)} KB markdown)`);
+    surface.print(`  Shareable:  ${htmlPath} (self-contained HTML, ${(html.length / 1024).toFixed(1)} KB)`);
+  }
 
   return result;
 }
@@ -627,4 +675,5 @@ module.exports = {
   // Re-export the formatters for convenience.
   formatCrisisForTTY,
   formatCrisisForDiscord,
+  formatEndOfRunEmbed,
 };

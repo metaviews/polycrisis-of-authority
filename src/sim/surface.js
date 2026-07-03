@@ -41,6 +41,20 @@
  *     plumbing. False for piped / discord / web surfaces. The terminal surface
  *     in pipe mode returns false; the discord surface always returns false.
  *
+ *   surface.singleMessage: boolean
+ *     True if the surface treats one user input unit as a complete move (no
+ *     multi-line continuation). The discord surface returns true; the TTY
+ *     surface returns false (or omits the flag, treated as false).
+ *
+ *   surface.endOfRunMode: 'banner-and-files' | 'embed-and-files' | undefined
+ *     Controls how the runLoop's end-of-run block presents the report +
+ *     artifact. Defaults to undefined (treated as 'banner-and-files').
+ *     - 'banner-and-files' (TTY default): verbose plain-text banner with
+ *       filesystem paths + narrate-run-end output printed via surface.print.
+ *     - 'embed-and-files' (discord): the loop posts a polished discord embed
+ *       (built via formatEndOfRunEmbed) + 2 file attachments (markdown +
+ *       html artifacts). The verbose plain-text lines are suppressed.
+ *
  *   surface.print(prose): void | Promise<void>
  *     Display a block of prose to the player. In TTY mode, this writes to
  *     stdout. In discord mode, this posts an embed. In web mode, this
@@ -55,6 +69,15 @@
  *     spinner. The atmospherics + corpusQuote args are optional layers
  *     surfaced only on the TTY surface for now (the discord/web surfaces
  *     can add equivalent affordances in later steps).
+ *
+ *   surface.postEndOfRun({ result, embed, files, paths }): Promise<void>
+ *     Called by the loop once at run end, after artifact files are written
+ *     to disk. The TTY surface no-ops (the verbose banner is handled
+ *     separately via surface.print inside the loop, gated on
+ *     endOfRunMode). The discord surface posts the embed + file attachments
+ *     + a "play again" followup hint. The default (no flag) is treated as
+ *     'banner-and-files', which means the discord surface should set
+ *     endOfRunMode explicitly.
  *
  *   surface.close(): void
  *     Tear down the surface. For TTY, closes readline. For discord, no-op
@@ -96,6 +119,21 @@
  *     truncated to the per-field limit (1024 chars). For turn-1 seed-driven
  *     crises, pressure and decision_point are deferred (the LLM generates
  *     them after the first move), so the embed notes that explicitly.
+ *
+ *   formatEndOfRunEmbed({ result, report, bands, paths }) -> { embed: object }
+ *     A discord.js embed payload for the end-of-run summary. Built from
+ *     the narrate-run-end report (outcome_line, narrative, key_moment,
+ *     invitation). Title includes runId; description is the narrative
+ *     (truncated to 4096 chars); fields include outcome, turns completed,
+ *     player / regime, key moment, invitation. Color varies by outcome
+ *     (collapse = warm red, stabilized = muted green, no-collapse =
+ *     neutral, player-quit = muted gray).
+ *
+ *   formatAdvisorResponseEmbed({ voice, response }) -> { embed: object }
+ *     A discord.js embed payload for an advisor consultation response.
+ *     Title is "Advisor: <voice>"; description is the response text
+ *     (truncated to 4096 chars). Used by the discord bot's advisor button
+ *     click handler.
  */
 
 const { wrap } = require('./cli-format');
@@ -223,10 +261,167 @@ function formatCrisisForDiscord(crisis, identity = null) {
   return { embed };
 }
 
+// ---------------------------------------------------------------------------
+// formatEndOfRunEmbed — end-of-run summary embed payload.
+// ---------------------------------------------------------------------------
+
+// Outcome → embed color. Discord colors are 24-bit integers.
+const END_OF_RUN_COLORS = {
+  collapse: 0xb5563a,        // warm red — collapse is failure
+  stabilized: 0x6b8a7a,      // muted green — held the posture
+  'no-collapse': 0x8a7f5c,   // muted archival neutral
+  'player-quit': 0x9a9a9a,   // muted gray — the player walked away
+};
+
+const END_OF_RUN_TITLES = {
+  collapse: 'The regime fell',
+  stabilized: 'The regime held',
+  'no-collapse': 'The run ended',
+  'player-quit': 'You resigned',
+};
+
+/**
+ * formatEndOfRunEmbed({ result, report, bands }) -> { embed }
+ *
+ * Builds a discord.js embed for the end-of-run summary. Pure function —
+ * does not post or otherwise interact with discord.
+ *
+ * @param {object} options
+ * @param {object} options.result - the runLoop result object (runId,
+ *   outcome, turnsCompleted, player, regime, model, etc.)
+ * @param {object} options.report - the narrateRunEnd report
+ *   (outcome_line, narrative, key_moment, invitation).
+ * @param {object} [options.bands] - optional state-with-bands for the
+ *   "final state" field.
+ * @returns {{ embed: object }} - the embed payload. Caller posts it.
+ */
+function formatEndOfRunEmbed({ result, report, bands = null }) {
+  if (!result) throw new Error('formatEndOfRunEmbed: result is required');
+  if (!report) throw new Error('formatEndOfRunEmbed: report is required');
+
+  const outcome = result.outcome || 'no-collapse';
+  const color = END_OF_RUN_COLORS[outcome] || END_OF_RUN_COLORS['no-collapse'];
+  const titlePrefix = END_OF_RUN_TITLES[outcome] || END_OF_RUN_TITLES['no-collapse'];
+
+  // Description = the narrative (the curated story of the run). Capped at
+  // discord's 4096-char embed description limit.
+  const description = truncateForDiscord(
+    report.narrative || report.outcome_line || '(no narrative)',
+    DISCORD_EMBED_DESCRIPTION_MAX,
+  );
+
+  // Fields: outcome line, turns completed, player/regime, key moment, invitation.
+  const fields = [];
+
+  fields.push({
+    name: 'Outcome',
+    value: truncateForDiscord(report.outcome_line || outcome, DISCORD_FIELD_VALUE_MAX),
+    inline: false,
+  });
+
+  fields.push({
+    name: 'Turns completed',
+    value: String(result.turnsCompleted ?? '?'),
+    inline: true,
+  });
+
+  fields.push({
+    name: 'Player / Regime',
+    value: truncateForDiscord(
+      `${result.player || 'the player'} / ${result.regime || 'the regime'}`,
+      DISCORD_FIELD_VALUE_MAX,
+    ),
+    inline: true,
+  });
+
+  if (report.key_moment) {
+    fields.push({
+      name: 'Key moment',
+      value: truncateForDiscord(report.key_moment, DISCORD_FIELD_VALUE_MAX),
+      inline: false,
+    });
+  }
+
+  if (report.invitation) {
+    fields.push({
+      name: 'Invitation',
+      value: truncateForDiscord(report.invitation, DISCORD_FIELD_VALUE_MAX),
+      inline: false,
+    });
+  }
+
+  // Final state bands: short summary of the 6 axes at run end. Helps the
+  // reader see what was lost / held at a glance.
+  if (bands && typeof bands === 'object') {
+    const stateLines = Object.entries(bands).map(
+      ([axis, info]) => `• ${axis}: ${info.value} (${info.band})`,
+    );
+    if (stateLines.length > 0) {
+      fields.push({
+        name: 'Final state',
+        value: truncateForDiscord(stateLines.join('\n'), DISCORD_FIELD_VALUE_MAX),
+        inline: false,
+      });
+    }
+  }
+
+  // Fallback note when the narrator used the hand-built summary.
+  if (report.fallback) {
+    fields.push({
+      name: 'Note',
+      value: '_Narrator unavailable; using the mechanical summary._',
+      inline: false,
+    });
+  }
+
+  return {
+    embed: {
+      title: `${titlePrefix} — run ${result.runId}`,
+      description,
+      fields,
+      color,
+      footer: result.model ? { text: `Model: ${result.model}` } : undefined,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// formatAdvisorResponseEmbed — advisor consultation response embed.
+// ---------------------------------------------------------------------------
+
+/**
+ * formatAdvisorResponseEmbed({ voice, response }) -> { embed }
+ *
+ * Builds a discord.js embed for an advisor's consultation response. Used
+ * by the discord bot's advisor button click handler.
+ *
+ * @param {object} options
+ * @param {string} options.voice - the advisor voice identifier
+ *   (e.g. "frontier-lab").
+ * @param {string} options.response - the advisor's text response.
+ * @returns {{ embed: object }}
+ */
+function formatAdvisorResponseEmbed({ voice, response }) {
+  if (!voice) throw new Error('formatAdvisorResponseEmbed: voice is required');
+  if (response == null) throw new Error('formatAdvisorResponseEmbed: response is required');
+
+  return {
+    embed: {
+      title: `Advisor: ${voice}`,
+      description: truncateForDiscord(response, DISCORD_EMBED_DESCRIPTION_MAX),
+      color: 0x6b8a7a, // muted archival green — same as the surface.readMove in 6d
+    },
+  };
+}
+
 module.exports = {
   formatCrisisForTTY,
   formatCrisisForDiscord,
+  formatEndOfRunEmbed,
+  formatAdvisorResponseEmbed,
   // Constants exposed for surfaces that want to honor the same limits
   DISCORD_FIELD_VALUE_MAX,
   DISCORD_EMBED_DESCRIPTION_MAX,
+  END_OF_RUN_COLORS,
+  END_OF_RUN_TITLES,
 };

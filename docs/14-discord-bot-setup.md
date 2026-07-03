@@ -264,6 +264,48 @@ In your discord test server (or DM with the bot):
 
 Confirm step 4 to proceed to step 5 (end-of-run report as embed + artifact file attachments).
 
+## Step 5 — End-of-run report as embed + artifact attachments
+
+Once step 4 lands (advisor buttons work mid-run), restart the bot:
+
+```
+npm run bot
+```
+
+When a run ends — collapse, stabilization, max-turns, or your `::resign` — the bot posts:
+
+1. **A polished discord embed** with:
+   - **Title** — outcome-flavored (`"The regime fell"`, `"The regime held"`, `"The run ended"`, `"You resigned"`) + run id
+   - **Description** — the narrator's narrative summary of the run (curated by the `narrateRunEnd` LLM call; falls back to a mechanical summary if the narrator is unavailable)
+   - **Fields** — Outcome / Turns completed / Player / Regime / Key moment / Invitation / Final state (the 6 axes' values and bands)
+   - **Color** — outcome-flavored (warm red for collapse, muted green for stabilized, archival neutral for no-collapse, muted gray for player-quit)
+   - **Footer** — model name
+2. **Two file attachments**:
+   - `<runId>-artifact.md` — the canonical markdown artifact (8 sections, all per-turn detail, all grounding traces)
+   - `<runId>-artifact.html` — the self-contained HTML artifact (FNV-1a content hash, ready to share)
+3. **A plain-text followup** — "Run complete. The artifact files are attached above (`<runId>-artifact.md` for the canonical markdown, `<runId>-artifact.html` for the shareable HTML). Type `/polycrisis start` to begin a new run."
+
+The files are also written to `./runs/` on disk for the orchestrator's audit trail.
+
+### Key behaviors (cycle 6e)
+
+- **Suppressed verbose TTY banner.** Discord no longer shows the multi-message sequence of `─── Generating artifact ───` + filesystem paths. The polished embed replaces it.
+- **Both artifact formats attached.** Markdown is the canonical source for handoff and audit. HTML is the shareable version (self-contained, FNV-1a content hash).
+- **`runLog` (per-turn debug log) stays on disk only.** Not attached to discord — that's the orchestrator's debug record, not player-facing.
+- **Outcome-color encoding.** Each outcome type has a distinct embed color. Players learn to read the embed's color as a quick "how did the run end" signal.
+- **Fallback note.** When the narrator LLM is unavailable, the embed includes a "Note" field: "_Narrator unavailable; using the mechanical summary._" — preserves the case-study claim.
+
+### What "step 5 complete" means
+
+- [ ] A collapse / stabilization / max-turns / resign ends the run with a polished discord embed
+- [ ] The embed includes 2 file attachments (markdown + html)
+- [ ] A plain-text followup hints at `/polycrisis start` to begin a new run
+- [ ] Artifact files appear in `./runs/` (for orchestrator audit)
+- [ ] No multi-message plain-text "Generating artifact" sequence on discord
+- [ ] The embed color matches the outcome
+
+Confirm step 5 to proceed to step 6 (`/polycrisis status` slash command).
+
 ## Related docs
 
 - `docs/13-discord-bot-architecture.md` — the architecture spec this setup doc implements
