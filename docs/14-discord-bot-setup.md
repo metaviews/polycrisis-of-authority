@@ -220,6 +220,50 @@ In your discord test server (or in a DM with the bot):
 
 Confirm step 3 to proceed to step 4 (advisor buttons — `/polycrisis advisor` shows 5 buttons; click posts the advisor's response).
 
+## Step 4 — Advisor buttons
+
+Once step 3 lands (the loop runs end-to-end with free-text moves), restart the bot:
+
+```
+npm run bot
+```
+
+Expected output (truncated):
+
+```
+[bot] registered 2 command(s) as GUILD commands in <guild id> (instant)
+[bot]   - /ping
+[bot]   - /polycrisis <subcommand>
+[bot] ready — logged in as <bot tag> (id=…)
+[bot] watching 1 guild(s)
+[bot] step 4 complete: /polycrisis advisor posts a 5-button row; click an advisor to consult.
+```
+
+In your discord test server (or DM with the bot):
+
+1. `/polycrisis start` to begin a run (if you don't already have one active).
+2. `/polycrisis advisor` — the bot posts a message with 5 buttons (Frontier Lab, Civil Society, State Security, Open Source, International Ally) and a header explaining the advisor flow.
+3. Click one of the buttons. The bot shows "Bot is typing..." while it calls the LLM (15–30s typical), then edits the reply with an embed containing the advisor's response.
+
+### Key behaviors (cycle 6d)
+
+- **Requires an active run.** `/polycrisis advisor` rejects with an ephemeral message if no run is active in this channel/DM. Start one with `/polycrisis start` first.
+- **Only the active user can click.** Other users who click an advisor button get an ephemeral "only the user with the active run can click advisor buttons" reply.
+- **Advisors describe, don't recommend.** Per docs/10-advisor-prompts.md, the advisor's response describes how that voice sees the current crisis. It doesn't recommend a specific action — the player writes their own policy.
+- **One message = one consult.** Each click produces one advisor response. Players can click multiple buttons in succession; each produces its own response.
+- **Advisor context uses the run's seed crisis.** v1 simplification: the advisor's corpus retrieval uses the seed (turn-1) as the crisis context, not the latest turn's crisis. The advisor's response is still corpus-grounded, just slightly less turn-specific. Future cycles can thread the latest crisis into the run state for sharper context.
+- **Free-text moves still work.** Clicking an advisor button doesn't disrupt the loop's MessageCollector waiting for the player's next move. The two event paths (`interactionCreate` for buttons, `messageCreate` for moves) are independent.
+
+### What "step 4 complete" means
+
+- [ ] `/polycrisis advisor` posts a message with 5 buttons
+- [ ] Clicking an advisor button posts an embed with the advisor's response
+- [ ] `/polycrisis advisor` rejects when no run is active
+- [ ] Clicking from a non-active user gets an ephemeral "not your button" reply
+- [ ] Free-text move handling (from step 3) still works
+
+Confirm step 4 to proceed to step 5 (end-of-run report as embed + artifact file attachments).
+
 ## Related docs
 
 - `docs/13-discord-bot-architecture.md` — the architecture spec this setup doc implements

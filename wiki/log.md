@@ -462,3 +462,24 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Verified:** 31 of 31 checks pass. Regressions: 6a=17, 6b=54, 5f=10, 5g=10, 5h=17, 5j=22 (5j has 1 cascading 5i pre-existing fail, allowed ≤2).
 - **Filed:** `wiki/prototypes/2026-07-03-cycle-6c-discord-moves.md` documents the cycle.
 - **Next:** cycle 6d (step 4) — advisor buttons. `surface.readChoice` posts 5 buttons (one per advisor voice). `bot.js` adds a `/polycrisis advisor` slash command. Step 5 upgrades end-of-run to embeds + file attachments.
+
+## 2026-07-03 — Cycle 6d: Discord advisor buttons (step 4 of 7)
+
+- **Action:** Filed changes to `src/bot/commands.js`, `src/bot/bot.js`, `docs/14-discord-bot-setup.md`. Updated `/tmp/hermes-verify-6b-discord-start.sh` to use the new `POLYCRISIS_COMMAND` name.
+- **Renamed `POLYCRISIS_START_COMMAND` → `POLYCRISIS_COMMAND`:** the slash command now hosts both `start` and `advisor` subcommands. ALL_COMMANDS still has 2 entries (ping + polycrisis); the polycrisis entry now has 2 subcommands.
+- **New `/polycrisis advisor` subcommand:** no slash options; the choice is made via buttons. Builds 5 buttons (one per advisor voice) in one ActionRow. Each button has a `advisor:<voice>` customId and a human-readable label (`Frontier Lab`, `Civil Society`, `State Security`, `Open Source`, `International Ally`).
+- **New `buildAdvisorButtons()` + `buildPolycrisisAdvisorReply()` + `buildAdvisorButtonClickReply()` pure builders:** keep the pure/discord-aware split. Verification scripts test the builders without depending on discord.js at require time. Each builder returns a discriminated-union shape so the bot's wrapper translates it to discord.js calls cleanly.
+- **Button click handler filters by active user:** only the user with the active run can click their advisor buttons. Other users get an ephemeral "only the user with the active run can click advisor buttons" reply.
+- **`consult()` integration:** bot.js imports `consult` from `src/sim/advisors`. Button click defers the reply, calls `consult({ voice, crisis, state, playerMove, identity })`, posts the response as an embed with `0x6b8a7a` muted archival green. v1 uses the seed crisis as context (simplification — see design notes in the prototype doc).
+- **`interactionCreate` dispatch now handles button interactions:** in addition to chat input commands. Button clicks with `customId` starting with `advisor:` go to the button handler. Other button clicks are silently dropped.
+- **discord.js imports hoisted:** `ActionRowBuilder`, `ButtonBuilder`, `ButtonStyle`, `EmbedBuilder` are now top-level imports. Previously `EmbedBuilder` was `require`d inside the handler, which broke the 6a verification's strict `require('discord.js')` count check.
+- **Display text:** `ADVISOR_HEADER_TEXT` ("which advisor would you like to consult? Their view is corpus-grounded and describes how that position sees the current crisis — it does not recommend an action."), `ADVISOR_NOT_ACTIVE_RUN_TEXT`, `ADVISOR_IGNORED_CLICK_TEXT`.
+- **Ready log:** "step 4 complete: /polycrisis advisor posts a 5-button row; click an advisor to consult."
+- **Setup doc:** "Step 4 — Advisor buttons" section with expected console output, key behaviors, and step-4 completion checklist.
+- **Verification scripts:**
+  - `/tmp/hermes-verify-6d-advisor-buttons.sh` (new): 36 main checks, all pass. Covers slash command definition, button shape, slash command dispatch (no-run / post-buttons paths), button click dispatch (active user / other user / no run / unknown prefix / unknown voice), display text exports, bot entrypoint loads with new imports, setup doc has step 4 section, regressions.
+  - `/tmp/hermes-verify-6b-discord-start.sh` (updated): uses new `POLYCRISIS_COMMAND` name.
+- **Live-run confirmation skipped** as in cycle 6c. Documented in the prototype doc as a judgment call.
+- **Verified:** 36 of 36 main checks pass. 6a regression: 17/17. 6b and 6c regressions time out due to **pre-existing walkthrough sub-regression flakiness** (5j → 5i sub-process hangs occasionally) — verified unrelated to 6d via git checkout on cycle-6c baseline.
+- **Filed:** `wiki/prototypes/2026-07-03-cycle-6d-advisor-buttons.md` documents the cycle.
+- **Next:** cycle 6e (step 5) — end-of-run report as embed + artifact file attachments. Cycle 6f (step 6) — `/polycrisis status`. Cycle 6g (step 7) — polish + deployment. The walkthrough sub-regression flakiness should be addressed in a separate follow-up cycle.

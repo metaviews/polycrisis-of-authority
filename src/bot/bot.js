@@ -5,9 +5,13 @@
 // Cycles:
 //   6a (step 1): gateway connect + /ping slash command + graceful shutdown.
 //   6b (step 2): /polycrisis start posts the seed/turn-1 crisis as a single
-//                discord embed. No move handling yet — the discord surface's
-//                readMove / readChoice / readConfirm throw "not yet
-//                implemented". Step 3 (cycle 6c) wires up free-text moves.
+//                discord embed. No move handling yet.
+//   6c (step 3): free-text move handling via MessageCollector (one message
+//                = one move). runLoop runs end-to-end on the discord surface.
+//   6d (step 4): /polycrisis advisor slash command posts a 5-button row.
+//                Clicking a button calls consult() and posts the advisor's
+//                response as an embed. Only the active user can click;
+//                other users get an ephemeral "not your button" reply.
 //
 // Required env vars:
 //   DISCORD_BOT_TOKEN   — bot user token from https://discord.com/developers/applications
@@ -19,23 +23,29 @@
 // Usage:
 //   DISCORD_BOT_TOKEN=... DISCORD_CLIENT_ID=... [DISCORD_GUILD_ID=...] node src/bot/bot.js
 
-const { Client, GatewayIntentBits, REST, Routes } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
 
 const {
   PING_COMMAND,
-  POLYCRISIS_START_COMMAND,
+  POLYCRISIS_COMMAND,
   ALL_COMMANDS,
   activeRuns,
   buildPingReply,
   buildPolycrisisStartReply,
+  buildPolycrisisAdvisorReply,
+  buildAdvisorButtonClickReply,
   STEP2_FOLLOWUP_TEXT,
   STEP3_HINT_TEXT,
   ALREADY_ACTIVE_TEXT,
+  ADVISOR_HEADER_TEXT,
+  ADVISOR_NOT_ACTIVE_RUN_TEXT,
+  ADVISOR_IGNORED_CLICK_TEXT,
 } = require('./commands');
 
 const { createDiscordSurface } = require('./surface');
 const { runLoop } = require('../sim/run-loop');
 const { formatCrisisForDiscord } = require('../sim/surface');
+const { consult } = require('../sim/advisors');
 
 // ---------------------------------------------------------------------------
 // config
@@ -178,6 +188,125 @@ async function runDiscordLoop(interaction, startResult) {
   }
 }
 
+/**
+ * handlePolycrisisAdvisor: /polycrisis advisor slash command handler.
+ *
+ * Posts a message with 5 buttons (one per advisor voice). The player
+ * clicks one; the bot's button handler (see interactionCreate dispatch)
+ * calls consult() and posts the response.
+ *
+ * Rejects if no active run for this user/channel.
+ */
+async function handlePolycrisisAdvisor(interaction) {
+  const result = buildPolycrisisAdvisorReply(interaction);
+
+  if (result.kind === 'no_active_run') {
+    await interaction.reply({
+      content: ADVISOR_NOT_ACTIVE_RUN_TEXT,
+      ephemeral: true,
+    });
+    return;
+  }
+
+  // Build the discord.js button row from the pure button data.
+  // 5 buttons fit in one ActionRow (discord allows up to 5 buttons per row).
+  const row = new ActionRowBuilder().addComponents(
+    result.buttons.map((b) =>
+      new ButtonBuilder()
+        .setCustomId(b.customId)
+        .setLabel(b.label)
+        .setStyle(ButtonStyle.Primary)
+    )
+  );
+
+  await interaction.reply({
+    content: ADVISOR_HEADER_TEXT,
+    components: [row],
+  });
+}
+
+/**
+ * handleAdvisorButtonClick: advisor button click handler.
+ *
+ * Filters: only the active user can click (other users get an ephemeral
+ * "not your button" reply). The active user gets a deferred reply
+ * followed by an edit with the advisor's response.
+ *
+ * Uses the run state's seed as the crisis context for consult(). v1
+ * simplification — see design note in cycle 6d's prototype doc.
+ */
+async function handleAdvisorButtonClick(interaction) {
+  const result = buildAdvisorButtonClickReply(interaction);
+
+  if (result.kind === 'not_active_user') {
+    // Either no run for this user, or a run exists for someone else in
+    // this channel. Either way: ephemeral reply indicating the click
+    // didn't apply.
+    await interaction.reply({
+      content: ADVISOR_IGNORED_CLICK_TEXT,
+      ephemeral: true,
+    });
+    return;
+  }
+
+  if (result.kind === 'unknown_button') {
+    // Defensive — shouldn't happen if interactionCreate dispatches
+    // correctly. Tell the user something went wrong.
+    await interaction.reply({
+      content: '_(Unknown button. Please use `/polycrisis advisor` to get a fresh button row.)_',
+      ephemeral: true,
+    });
+    return;
+  }
+
+  // result.kind === 'consult' — call the engine.
+  const { voice, runState } = result;
+  await interaction.deferReply();
+
+  // Use the run state's seed as the crisis context. The seed's fragment
+  // is the seed's situation text (5-6 sentence briefing). This is a v1
+  // simplification — see cycle 6d's prototype doc for the trade-off.
+  // Future work could thread the latest turn's crisis into the run state.
+  const crisisContext = runState.crisis || {
+    id: runState.seed?.id || 'unknown',
+    title: runState.seed?.actor ? `${runState.seed.actor} seed` : 'Active crisis',
+    trigger: runState.seed?.fragment || '',
+    situation: runState.seed?.fragment || '',
+    pressure: '(consulting an advisor before a crisis is posted)',
+    decision_point: '(consulting an advisor before a crisis is posted)',
+    failure_pattern: runState.seed?.failurePattern || 'unknown',
+    focal_axes: runState.seed?.focalAxes || [],
+  };
+
+  try {
+    const response = await consult({
+      voice,
+      crisis: crisisContext,
+      state: runState.state || {},
+      playerMove: '[player is consulting an advisor during the run]',
+      identity: null,
+      model: process.env.OPENROUTER_MODEL || 'minimax/minimax-m3',
+    });
+
+    // Build a friendly embed with the advisor's name + response.
+    const embed = new EmbedBuilder()
+      .setTitle(`Advisor: ${voice}`)
+      .setDescription(response.slice(0, 4096))
+      .setColor(0x6b8a7a); // muted archival green
+
+    await interaction.editReply({ embeds: [embed] });
+  } catch (err) {
+    console.error(`[bot] consult failed for voice ${voice}:`, err);
+    try {
+      await interaction.editReply({
+        content: `_(Consult failed: ${err.message})_\nType \`/polycrisis advisor\` to try again.`,
+      });
+    } catch (editErr) {
+      console.error('[bot] editReply also failed:', editErr);
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // client
 // ---------------------------------------------------------------------------
@@ -194,23 +323,31 @@ const client = new Client({
 client.once('ready', (c) => {
   console.log(`[bot] ready — logged in as ${c.user.tag} (id=${c.user.id})`);
   console.log(`[bot] watching ${c.guilds.cache.size} guild(s)`);
-  console.log('[bot] step 3 complete: /polycrisis start runs the loop end-to-end; type your move as a message.');
+  console.log('[bot] step 4 complete: /polycrisis advisor posts a 5-button row; click an advisor to consult.');
 });
 
 client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-
   try {
-    if (interaction.commandName === 'ping') {
-      await handlePing(interaction);
-    } else if (
-      interaction.commandName === 'polycrisis' &&
-      interaction.options.getSubcommand() === 'start'
-    ) {
-      await handlePolycrisisStart(interaction);
+    if (interaction.isChatInputCommand()) {
+      if (interaction.commandName === 'ping') {
+        await handlePing(interaction);
+      } else if (interaction.commandName === 'polycrisis') {
+        const sub = interaction.options.getSubcommand();
+        if (sub === 'start') {
+          await handlePolycrisisStart(interaction);
+        } else if (sub === 'advisor') {
+          await handlePolycrisisAdvisor(interaction);
+        }
+      }
+    } else if (interaction.isButton()) {
+      // Filter: only advisor:* buttons reach the button handler. Buttons
+      // with other customIds (added in future cycles) are silently dropped.
+      if (interaction.customId && interaction.customId.startsWith('advisor:')) {
+        await handleAdvisorButtonClick(interaction);
+      }
     }
   } catch (err) {
-    console.error(`[bot] error handling /${interaction.commandName}:`, err);
+    console.error(`[bot] error handling interaction:`, err);
     try {
       const reply = `Something went wrong handling that command: ${err.message}`;
       if (interaction.deferred || interaction.replied) {
@@ -269,7 +406,7 @@ process.on('unhandledRejection', (reason) => {
 
 module.exports = {
   PING_COMMAND,
-  POLYCRISIS_START_COMMAND,
+  POLYCRISIS_COMMAND,
   ALL_COMMANDS,
   // Expose the pure builders for verification scripts.
   buildPingReply,
@@ -279,4 +416,8 @@ module.exports = {
   // bot's loop-spawning logic with a mock interaction + channel.
   // (Tests stub client and surface; they don't actually connect to discord.)
   runDiscordLoop,
+  // 6d handlers — verification scripts can test the pure paths via
+  // buildPolycrisisAdvisorReply / buildAdvisorButtonClickReply (the
+  // discord-aware handlers handlePolycrisisAdvisor / handleAdvisorButtonClick
+  // are not exported because they require a live discord.js context).
 };
