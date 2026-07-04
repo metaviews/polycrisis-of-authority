@@ -546,3 +546,21 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Verified:** n of n main checks pass (filled in by verification run).
 - **Filed:** `wiki/prototypes/2026-07-04-cycle-6g-end-and-identity.md` (filled in after verification).
 - **Next:** deployment to the user's dedicated server, live-run confirmation, walkthrough. Discord build plan complete after this cycle ships.
+
+## 2026-07-04 — Deployment spec filed
+
+- **Action:** Filed `docs/16-deployment.md` (single-doc, 1684 lines). Single-doc shape per user ground.
+- **9 sections:** §1 install+run, §2 secrets+config, §3 pm2 supervision, §4 sqlite persistence, §5 monitoring+observability, §6 webhook liveness, §7 security hardening (rest), §8 upgrade+rollback, §9 live-run confirmation.
+- **Grounding held with user 2026-07-04:** ubuntu/debian, node-install-flexible, pm2, openrouter-or-MiniMax-direct-both, sqlite-on, full monitoring, webhook liveness, env-var model swap, public-internet security (hardened), single-doc spec.
+- **Pending grounding inside each section** (rendered as `> **§X.Y (grounding pending)**` in the spec):
+  - §4.1 — backups: skip for v1 (spec default; user can flip later)
+  - §5.1 — heartbeat fields: `(source, kind, ts)` minimum (spec default)
+  - §7.1 — operator's ssh key: spec assumes pre-existing
+  - §7.2 — operator-login user + `sudo -u polycrisis` flow
+  - §7.3 — ssh port: keep 22 (default) or move to non-standard
+  - §2 refactor scope: confirm `src/sim/openrouter-client` swappable LLM exists before §2 implementation; if not, §2 includes a refactor cycle
+- **Cycle plan (10 cycles total in series 7-x):** `cycle 7-install` → `cycle 7-secrets` → `cycle 7-pm2` → `cycle 7-sqlite` → `cycle 7-monitoring` → `cycle 7-webhook` → `cycle 7-security` → `cycle 7-upgrade` → `cycle 7-live-run`. Each ships a per-cycle ad-hoc verification script at `/tmp/hermes-verify-deploy-<section>.sh`.
+- **Spec policy reaffirmed:** files first, R1–R4-style grounding before each remote command, no remote commands without user confirmation, project handoff-protocol discipline preserved.
+- **Verified:** the spec itself is structural prose, not a behavior claim, so no per-cycle verification script yet. Each implementation cycle will have its own.
+- **Filed:** `wiki/prototypes/2026-07-04-cycle-deploy-spec.md`.
+- **Next:** cycle 7-install when user signals "start the deploy," grounded before any remote command.
