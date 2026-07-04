@@ -51,7 +51,13 @@ const POLYCRISIS_COMMAND = {
       type: 1, // SUB_COMMAND
       // No options — the choice is made via buttons, not slash options.
     },
-    // Future subcommands (cycle 6c+): move, status, end, artifact.
+    {
+      name: 'status',
+      description: 'Show the current state of the active run (6 axes, bands, turn count, crisis).',
+      type: 1, // SUB_COMMAND
+      // No options — the embed is built from the latest snapshot.
+    },
+    // Future subcommands (cycle 6g+): end, artifact.
   ],
 };
 
@@ -284,6 +290,46 @@ function buildAdvisorButtonClickReply(interaction) {
   return { kind: 'consult', voice, runState };
 }
 
+// ---------------------------------------------------------------------------
+// /polycrisis status handler (cycle 6f)
+// ---------------------------------------------------------------------------
+
+/**
+ * /polycrisis status slash command — pure builder.
+ *
+ * Returns:
+ *   { kind: 'no_active_run', key }       — no run for this user/channel
+ *   { kind: 'post_embed', runState, embed } — ready to post
+ *
+ * The bot wraps the post_embed branch in a channel.send + the embed.
+ * Uses src/sim/surface.formatStatusEmbed to build the discord embed.
+ */
+function buildPolycrisisStatusReply(interaction, { formatStatusEmbed } = {}) {
+  const key = runKey(interaction);
+  const runState = activeRuns.get(key);
+  if (!runState) {
+    return { kind: 'no_active_run', key };
+  }
+
+  // The run state must have currentTurn + currentState + currentCrisis for
+  // the embed to be useful. If they're missing (e.g. the run just started
+  // and onTurnStart hasn't fired yet), the embed is built with defaults.
+  // For a robust check, ensure currentTurn is at least 1 before returning
+  // a useful embed; otherwise, return a 'pre-turn' state.
+  const fmt = formatStatusEmbed;
+  if (typeof fmt !== 'function') {
+    throw new Error('buildPolycrisisStatusReply: formatStatusEmbed dependency is required');
+  }
+
+  // Construct a stable runState-with-status object. The activeRuns entry
+  // already has the standard fields (runId, userId, channelId, seed, crisis,
+  // startedAt, model). We layer on currentTurn / currentState / currentCrisis
+  // / bands (added by runLoop's onTurnStart callback) and identity (set when
+  // the bot launched the loop).
+  const { embed } = fmt({ runState });
+  return { kind: 'post_embed', runState, embed };
+}
+
 const ADVISOR_HEADER_TEXT = 'Which advisor would you like to consult? Their view is corpus-grounded and describes how that position sees the current crisis — it does not recommend an action.';
 
 const ADVISOR_NOT_ACTIVE_RUN_TEXT =
@@ -292,6 +338,10 @@ const ADVISOR_NOT_ACTIVE_RUN_TEXT =
 
 const ADVISOR_IGNORED_CLICK_TEXT =
   '_Only the user with the active run can click advisor buttons._';
+
+const STATUS_NOT_ACTIVE_RUN_TEXT =
+  'No active run in this channel. Start one with `/polycrisis start` first, ' +
+  'then `/polycrisis status` will show the current state.';
 
 // Step-2 followup hint for the bot to send after the embed (deprecated in 6c;
 // STEP3_HINT_TEXT replaces it once free-text moves work).
@@ -327,6 +377,7 @@ module.exports = {
   buildPolycrisisStartReply,
   buildPolycrisisAdvisorReply,
   buildAdvisorButtonClickReply,
+  buildPolycrisisStatusReply,
   buildAdvisorButtons,
   // Display text
   STEP2_FOLLOWUP_TEXT,
@@ -336,4 +387,5 @@ module.exports = {
   ADVISOR_NOT_ACTIVE_RUN_TEXT,
   ADVISOR_IGNORED_CLICK_TEXT,
   ADVISOR_BUTTON_PREFIX,
+  STATUS_NOT_ACTIVE_RUN_TEXT,
 };

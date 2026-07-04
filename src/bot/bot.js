@@ -12,6 +12,12 @@
 //                Clicking a button calls consult() and posts the advisor's
 //                response as an embed. Only the active user can click;
 //                other users get an ephemeral "not your button" reply.
+//   6e (step 5): end-of-run report as a discord embed + 2 file attachments
+//                (markdown + html artifacts) + a followup "play again" hint.
+//   6f (step 6): /polycrisis status slash command. Posts the current state
+//                of the active run (6 axes, bands, turn count, crisis title).
+//                The loop's onTurnStart callback snapshots the live state
+//                into the activeRuns entry so /status can read it.
 //
 // Required env vars:
 //   DISCORD_BOT_TOKEN   — bot user token from https://discord.com/developers/applications
@@ -34,17 +40,19 @@ const {
   buildPolycrisisStartReply,
   buildPolycrisisAdvisorReply,
   buildAdvisorButtonClickReply,
+  buildPolycrisisStatusReply,
   STEP2_FOLLOWUP_TEXT,
   STEP3_HINT_TEXT,
   ALREADY_ACTIVE_TEXT,
   ADVISOR_HEADER_TEXT,
   ADVISOR_NOT_ACTIVE_RUN_TEXT,
   ADVISOR_IGNORED_CLICK_TEXT,
+  STATUS_NOT_ACTIVE_RUN_TEXT,
 } = require('./commands');
 
 const { createDiscordSurface } = require('./surface');
 const { runLoop } = require('../sim/run-loop');
-const { formatCrisisForDiscord } = require('../sim/surface');
+const { formatCrisisForDiscord, formatStatusEmbed } = require('../sim/surface');
 const { consult } = require('../sim/advisors');
 
 // ---------------------------------------------------------------------------
@@ -157,6 +165,19 @@ async function runDiscordLoop(interaction, startResult) {
     activeUser: { id: user.id, tag: user.tag },
   });
 
+  // onTurnStart: snapshot the pre-delta state + current crisis so /polycrisis
+  // status can read them later. Mutates the activeRuns entry in place via
+  // startResult.key (already established when /start was called).
+  const onTurnStart = ({ turn, state, crisis, bands }) => {
+    const entry = activeRuns.get(startResult.key);
+    if (entry) {
+      entry.currentTurn = turn;
+      entry.currentState = state;
+      entry.currentCrisis = crisis;
+      entry.bands = bands;
+    }
+  };
+
   try {
     await runLoop({
       surface,
@@ -166,6 +187,7 @@ async function runDiscordLoop(interaction, startResult) {
       // description empty; the run log uses default "the player" / "the regime".
       identity: null,
       renderTurn: formatCrisisForDiscord,
+      onTurnStart,
     });
   } catch (err) {
     // readMove timeout (player-quit after 10 min idle) or any other loop error.
@@ -307,6 +329,32 @@ async function handleAdvisorButtonClick(interaction) {
   }
 }
 
+/**
+ * handlePolycrisisStatus: /polycrisis status slash command handler.
+ *
+ * Posts the current state of the active run as an embed (6 axes, bands,
+ * turn count, crisis title, player/regime, model). Updates whenever the
+ * player calls /status mid-run; useful when they've been away and need
+ * to recall where they are.
+ *
+ * Rejects if no active run for this user/channel.
+ */
+async function handlePolycrisisStatus(interaction) {
+  const result = buildPolycrisisStatusReply(interaction, { formatStatusEmbed });
+
+  if (result.kind === 'no_active_run') {
+    await interaction.reply({
+      content: STATUS_NOT_ACTIVE_RUN_TEXT,
+      ephemeral: true,
+    });
+    return;
+  }
+
+  // Post the status embed. This is NOT ephemeral — the player can scroll
+  // back to it.
+  await interaction.reply({ embeds: [result.embed] });
+}
+
 // ---------------------------------------------------------------------------
 // client
 // ---------------------------------------------------------------------------
@@ -323,7 +371,7 @@ const client = new Client({
 client.once('ready', (c) => {
   console.log(`[bot] ready — logged in as ${c.user.tag} (id=${c.user.id})`);
   console.log(`[bot] watching ${c.guilds.cache.size} guild(s)`);
-  console.log('[bot] step 4 complete: /polycrisis advisor posts a 5-button row; click an advisor to consult.');
+  console.log('[bot] step 6 complete: /polycrisis status shows the current state of the active run.');
 });
 
 client.on('interactionCreate', async (interaction) => {
@@ -337,6 +385,8 @@ client.on('interactionCreate', async (interaction) => {
           await handlePolycrisisStart(interaction);
         } else if (sub === 'advisor') {
           await handlePolycrisisAdvisor(interaction);
+        } else if (sub === 'status') {
+          await handlePolycrisisStatus(interaction);
         }
       }
     } else if (interaction.isButton()) {

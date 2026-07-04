@@ -137,6 +137,7 @@
  */
 
 const { wrap } = require('./cli-format');
+const { withBands } = require('./state');
 
 // ---------------------------------------------------------------------------
 // formatCrisisForTTY — port of the existing renderCrisisProse logic.
@@ -386,6 +387,153 @@ function formatEndOfRunEmbed({ result, report, bands = null }) {
 }
 
 // ---------------------------------------------------------------------------
+// formatStatusEmbed — mid-run status snapshot embed payload.
+// ---------------------------------------------------------------------------
+
+// Status colors are band-driven, not outcome-driven (status is mid-run).
+// The state.js band system has 4 bands: 'holding', 'strained', 'eroded',
+// 'collapsed' (from highest to lowest value). We map:
+// - all axes in 'holding' band → muted green (regime looks stable)
+// - any axis in 'collapsed' band → warm red (regime is at risk)
+// - otherwise → muted archival neutral
+const STATUS_COLORS = {
+  stable: 0x6b8a7a,    // all holding
+  critical: 0xb5563a,  // any collapsed
+  neutral: 0x8a7f5c,   // mixed
+};
+
+const VALID_AXES = ['legitimacy', 'fiscal_slack', 'elite_alignment', 'ecological_debt', 'narrative_coherence', 'capability_frontier'];
+
+// Order of the 'Axes' field — must match VALID_AXES so the embed reads top-down.
+const AXIS_ORDER = VALID_AXES;
+
+/**
+ * Compute the embed color based on the current state bands.
+ * Pure function: takes a bands object (from withBands(state)) and returns
+ * one of the STATUS_COLORS hex values.
+ */
+function pickStatusColor(bands) {
+  if (!bands || typeof bands !== 'object') {
+    return STATUS_COLORS.neutral;
+  }
+  let anyCollapsed = false;
+  let allHolding = true;
+  for (const axis of VALID_AXES) {
+    const info = bands[axis];
+    if (!info) continue;
+    if (info.band === 'collapsed') {
+      anyCollapsed = true;
+    }
+    if (info.band !== 'holding') {
+      allHolding = false;
+    }
+  }
+  if (anyCollapsed) return STATUS_COLORS.critical;
+  if (allHolding) return STATUS_COLORS.stable;
+  return STATUS_COLORS.neutral;
+}
+
+/**
+ * formatStatusEmbed({ runState }) -> { embed }
+ *
+ * Builds a discord.js embed for the mid-run status snapshot. Pure function —
+ * does not post or otherwise interact with discord.
+ *
+ * @param {object} options
+ * @param {object} options.runState - the run state with:
+ *   - currentTurn (number, 0 if not yet started)
+ *   - currentState (state vector with 6 axes)
+ *   - currentCrisis (crisis object — title + situation, used for the embed title)
+ *   - runId, player, regime, model (from the original run state)
+ *   - bands (optional — computed from currentState if not provided)
+ * @returns {{ embed: object }}
+ */
+function formatStatusEmbed({ runState }) {
+  if (!runState) {
+    throw new Error('formatStatusEmbed: runState is required');
+  }
+
+  const turn = runState.currentTurn ?? 0;
+  const crisis = runState.currentCrisis;
+  const bands = runState.bands || (runState.currentState ? computeBands(runState.currentState) : null);
+
+  const color = pickStatusColor(bands);
+
+  // Title: "Status — Turn N — <crisis title>" or "Status — Turn N" if no crisis yet.
+  let titleSuffix = '';
+  if (crisis && crisis.title) {
+    titleSuffix = ` — ${truncateForDiscord(crisis.title, 200)}`;
+  }
+  const title = `Status — Turn ${turn}${titleSuffix}`;
+
+  // Axes field: multi-line `legitimacy: 45 (strained) / fiscal_slack: 60 (holding) / ...`
+  const axesLines = bands
+    ? AXIS_ORDER.map((axis) => {
+        const info = bands[axis];
+        if (!info) return `• ${axis}: ?`;
+        return `• ${axis}: ${info.value} (${info.band})`;
+      })
+    : AXIS_ORDER.map((axis) => `• ${axis}: ?`);
+  const axesField = {
+    name: 'Axes',
+    value: truncateForDiscord(axesLines.join('\n'), DISCORD_FIELD_VALUE_MAX),
+    inline: false,
+  };
+
+  // Build fields array.
+  const fields = [axesField];
+
+  fields.push({
+    name: 'Turn',
+    value: String(turn),
+    inline: true,
+  });
+
+  fields.push({
+    name: 'Player / Regime',
+    value: truncateForDiscord(
+      `${runState.player || 'the player'} / ${runState.regime || 'the regime'}`,
+      DISCORD_FIELD_VALUE_MAX,
+    ),
+    inline: true,
+  });
+
+  if (runState.model) {
+    fields.push({
+      name: 'Model',
+      value: runState.model,
+      inline: true,
+    });
+  }
+
+  // Brief situation snippet from the current crisis (helps the player
+  // recall what they're deciding on after scrolling away).
+  if (crisis && crisis.situation) {
+    fields.push({
+      name: 'Current situation',
+      value: truncateForDiscord(crisis.situation, DISCORD_FIELD_VALUE_MAX),
+      inline: false,
+    });
+  }
+
+  return {
+    embed: {
+      title,
+      color,
+      fields,
+      footer: runState.runId ? { text: `Run ${runState.runId}` } : undefined,
+    },
+  };
+}
+
+// Helper: compute bands for a state vector. Used by formatStatusEmbed when
+// the caller didn't pre-compute bands. withBands is imported at the top of
+// this file (state.js is pure — no circular import risk).
+function computeBands(state) {
+  return withBands(state);
+}
+
+// ---------------------------------------------------------------------------
 // formatAdvisorResponseEmbed — advisor consultation response embed.
 // ---------------------------------------------------------------------------
 
@@ -419,9 +567,13 @@ module.exports = {
   formatCrisisForDiscord,
   formatEndOfRunEmbed,
   formatAdvisorResponseEmbed,
+  formatStatusEmbed,
+  pickStatusColor,
   // Constants exposed for surfaces that want to honor the same limits
   DISCORD_FIELD_VALUE_MAX,
   DISCORD_EMBED_DESCRIPTION_MAX,
   END_OF_RUN_COLORS,
   END_OF_RUN_TITLES,
+  STATUS_COLORS,
+  VALID_AXES,
 };

@@ -502,3 +502,23 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Verified:** 32 of 32 main checks pass (visually verified in the log: 46 PASS, 0 FAIL).
 - **Filed:** `wiki/prototypes/2026-07-03-cycle-6e-end-of-run.md`.
 - **Next:** cycle 6f (step 6) — `/polycrisis status` slash command. Cycle 6g (step 7) — polish + deployment. Walkthrough sub-regression flakiness should be addressed separately.
+
+## 2026-07-03 — Cycle 6f: Discord /polycrisis status (step 6 of 7)
+
+- **Action:** Filed changes to `src/sim/surface.js`, `src/sim/run-loop.js`, `src/bot/commands.js`, `src/bot/bot.js`. Updated `docs/14-discord-bot-setup.md` with step 6 section.
+- **New `formatStatusEmbed({ runState })`** in `src/sim/surface.js`: pure formatter building a discord.js embed. Title is `Status — Turn N — <crisis title>`. Color is band-driven (all-holding → muted green, any-collapsed → warm red, otherwise → muted archival neutral). Fields include Axes (6 lines), Turn, Player/Regime, Model (if provided), Current situation (if crisis present). Footer is `Run <runId>`.
+- **New `pickStatusColor(bands)`** pure function. Inspects axis bands and returns the appropriate STATUS_COLORS hex value.
+- **New `STATUS_COLORS` + `VALID_AXES` constants** exported from surface.js.
+- **New `onTurnStart` callback hook in `runLoop`.** Signature: `onTurnStart({ turn, state, crisis, bands, identity })`. Fires at the top of each turn, after the crisis is built but before renderTurn. State passed is pre-delta. Errors caught + logged (best-effort). Used by the discord bot to snapshot live state into activeRuns so /status can read it.
+- **New `/polycrisis status` subcommand** registered alongside `start` and `advisor`. No slash options — the embed is built from the latest snapshot.
+- **New `buildPolycrisisStatusReply(interaction, { formatStatusEmbed })`** pure builder. Returns `{ kind: 'no_active_run', key }` or `{ kind: 'post_embed', runState, embed }`. formatStatusEmbed is injected as a dependency to keep commands.js decoupled from the engine.
+- **New `handlePolycrisisStatus(interaction)`** in bot.js. Posts the status embed or rejects ephemerally.
+- **New `onTurnStart` closure** in `runDiscordLoop` mutates activeRuns with `currentTurn` / `currentState` / `currentCrisis` / `bands` each turn. This bridges the loop's local state to the slash command's sync read access.
+- **New `STATUS_NOT_ACTIVE_RUN_TEXT`** constant.
+- **interactionCreate dispatch** updated to route `status` subcommand to `handlePolycrisisStatus`.
+- **Setup doc:** "Step 6 — `/polycrisis status` slash command" section with embed shape, key behaviors, and step-6 completion checklist.
+- **Verification:** `/tmp/hermes-verify-6f-status.sh` (new) — 39 main checks pass; 6a=17/17. 6b/6c/6d/6e regressions time out due to pre-existing walkthrough sub-regression flakiness.
+- **Live-run confirmation skipped** (same as cycles 6b–6e).
+- **Verified:** 39 of 39 main checks pass.
+- **Filed:** `wiki/prototypes/2026-07-03-cycle-6f-status.md`.
+- **Next:** cycle 6g (step 7) — polish + deployment. Final cycle in the discord build. Walkthrough sub-regression flakiness should be addressed separately.

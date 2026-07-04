@@ -306,6 +306,48 @@ The files are also written to `./runs/` on disk for the orchestrator's audit tra
 
 Confirm step 5 to proceed to step 6 (`/polycrisis status` slash command).
 
+## Step 6 — `/polycrisis status` slash command
+
+Once step 5 lands (end-of-run report + attachments work), restart the bot:
+
+```
+npm run bot
+```
+
+In your discord test server (or DM with the bot):
+
+1. `/polycrisis start` to begin a run (if you don't already have one active).
+2. At any point during the run, type `/polycrisis status`. The bot replies with an embed showing the current state.
+3. Continue playing — `/status` is read-only and doesn't disrupt the loop.
+
+### What the status embed shows
+
+- **Title** — `Status — Turn N — <crisis title>` (the current turn number + the title of the crisis the player is reasoning about).
+- **Color** — band-driven. All axes in the `holding` band → muted green. Any axis in the `collapsed` band → warm red. Otherwise → muted archival neutral. Gives a quick visual signal of the regime's state.
+- **Axes field** — all 6 axes with current value + band (e.g. `legitimacy: 45 (eroded)`).
+- **Turn** — current turn number.
+- **Player / Regime** — the player and institution from the run's identity.
+- **Model** — the model used for the run.
+- **Current situation** — a brief snippet of the current crisis's situation text (helps the player recall what they're deciding on after scrolling away).
+- **Footer** — `Run <runId>`.
+
+### Key behaviors (cycle 6f)
+
+- **Requires an active run.** `/polycrisis status` rejects with an ephemeral message if no run is active in this channel/DM.
+- **Mid-run snapshot.** Status reflects the state at the most recent turn. The loop's `onTurnStart` callback snapshots the pre-delta state + current crisis into the `activeRuns` entry at the top of each turn; `/status` reads that snapshot.
+- **Read-only.** Doesn't change any game state. Safe to call repeatedly.
+- **Color is band-driven.** See the table above.
+
+### What "step 6 complete" means
+
+- [ ] `/polycrisis status` posts a status embed with all 6 axes + bands + turn + crisis
+- [ ] The embed color reflects the current band distribution (green / red / neutral)
+- [ ] Calling `/status` multiple times mid-run shows the same data (no drift)
+- [ ] `/polycrisis status` rejects with an ephemeral "no active run" if no run is active
+- [ ] The end-of-run report (step 5) and the move handling (step 3) still work
+
+Confirm step 6 to proceed to step 7 (polish + deployment).
+
 ## Related docs
 
 - `docs/13-discord-bot-architecture.md` — the architecture spec this setup doc implements

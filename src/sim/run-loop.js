@@ -63,7 +63,7 @@ const { consult, ADVISOR_VOICES } = require('./advisors');
 const { selectAtmospherics } = require('./atmospherics');
 const { generateArtifact } = require('./artifact-generator');
 const { renderArtifactHtml } = require('./artifact-render');
-const { formatCrisisForTTY, formatCrisisForDiscord, formatEndOfRunEmbed } = require('./surface');
+const { formatCrisisForTTY, formatCrisisForDiscord, formatEndOfRunEmbed, formatStatusEmbed } = require('./surface');
 
 // cycle 5d: dynamic turn count + stabilization
 const MAX_TURNS = 30;
@@ -135,6 +135,13 @@ async function consultAdvisorShort(voice, crisis, state, identity = null) {
 //   renderTurn: function(crisis, identity) -> formatted output (required).
 //             This is the surface-specific formatter. TTY uses
 //             formatCrisisForTTY; discord uses formatCrisisForDiscord.
+//   onTurnStart: function({ turn, state, crisis, bands, identity }) (optional).
+//             Called at the top of each turn, after the crisis is built but
+//             before renderTurn runs. The discord surface uses this to
+//             snapshot the current turn / state / crisis so /polycrisis
+//             status can read them later. The state passed is the PRE-delta
+//             state (what the player is reasoning about this turn). TTY
+//             passes nothing (no status command to support).
 // ---------------------------------------------------------------------------
 
 async function runLoop(options) {
@@ -145,6 +152,7 @@ async function runLoop(options) {
     seedId = null,
     identity: identityArg = null,
     renderTurn = null,
+    onTurnStart = null,
   } = options;
 
   if (!surface || typeof surface.print !== 'function') {
@@ -152,6 +160,9 @@ async function runLoop(options) {
   }
   if (typeof renderTurn !== 'function') {
     throw new Error('runLoop: renderTurn(crisis, identity) -> formatted is required');
+  }
+  if (onTurnStart !== null && typeof onTurnStart !== 'function') {
+    throw new Error('runLoop: onTurnStart, if provided, must be a function');
   }
 
   const runId = generateRunId();
@@ -226,6 +237,25 @@ async function runLoop(options) {
         actor = seed.actor;
       } else {
         crisis = crisisFromWorld(priorWorld, `Turn ${turn}`);
+      }
+
+      // Snapshot the pre-delta state + current crisis before renderTurn
+      // runs. The discord surface uses this to power /polycrisis status
+      // mid-run. TTY passes no onTurnStart, so this is a no-op for TTY.
+      if (typeof onTurnStart === 'function') {
+        try {
+          onTurnStart({
+            turn,
+            state,           // pre-delta state (what the player is reasoning about)
+            crisis,
+            bands: withBands(state),
+            identity,
+          });
+        } catch (err) {
+          // The callback is best-effort — don't let a bug in the snapshot
+          // path break the turn loop. Log and continue.
+          console.error('[runLoop] onTurnStart callback threw:', err);
+        }
       }
 
       // 2. Render the crisis to the surface.
@@ -676,4 +706,5 @@ module.exports = {
   formatCrisisForTTY,
   formatCrisisForDiscord,
   formatEndOfRunEmbed,
+  formatStatusEmbed,
 };
