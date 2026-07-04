@@ -99,6 +99,10 @@ function createDiscordSurface({ channel, client = null, activeUser = null, timeo
   // ~10s; we refresh it every 5s while a long LLM call is in flight.
   let typingInterval = null;
 
+  // Track the active MessageCollector (from readMove) so /polycrisis end
+  // can stop it via surface.forceEnd(). Null when no readMove is in flight.
+  let activeCollector = null;
+
   async function startTyping() {
     if (!channel || typeof channel.sendTyping !== 'function') return;
     try {
@@ -196,6 +200,9 @@ function createDiscordSurface({ channel, client = null, activeUser = null, timeo
         time: timeoutMs,
       });
 
+      // Expose the collector so callers (e.g. /polycrisis end) can stop it.
+      activeCollector = collector;
+
       collector.on('collect', (msg) => {
         collector.stop('collected');
         // Return the message content trimmed. If empty (e.g. attachment-only),
@@ -204,8 +211,14 @@ function createDiscordSurface({ channel, client = null, activeUser = null, timeo
       });
 
       collector.on('end', (collected, reason) => {
+        activeCollector = null;
         if (reason === 'collected') return; // Already resolved above.
-        if (reason === 'time') {
+        if (reason === 'end') {
+          // forceEnd() was called by the bot (e.g. /polycrisis end).
+          // Reject with a sentinel error the runDiscordLoop catch path
+          // recognizes and turns into a friendly "run ended" message.
+          reject(new Error('discord surface.readMove: run ended by user request'));
+        } else if (reason === 'time') {
           reject(new Error(
             `discord surface.readMove: timed out after ${timeoutMs}ms waiting for ` +
             `${activeUser.tag || activeUser.id} to send a message in ${channel.id}. ` +
@@ -216,6 +229,26 @@ function createDiscordSurface({ channel, client = null, activeUser = null, timeo
         }
       });
     });
+  }
+
+  /**
+   * forceEnd: stop the active MessageCollector (if any). The collector's
+   * `end` event fires with reason='end', which readMove's promise rejects
+   * with the sentinel "run ended by user request" error. The runLoop
+   * catches that error in its readPlayerMove handler and breaks the
+   * turn loop; runDiscordLoop's catch path surfaces the user-end message.
+   *
+   * Idempotent: calling with no active collector is a no-op.
+   */
+  function forceEnd() {
+    if (activeCollector) {
+      try {
+        activeCollector.stop('end');
+      } catch (err) {
+        console.warn('[bot surface] forceEnd: collector.stop failed:', err.message);
+      }
+      activeCollector = null;
+    }
   }
 
   function close() {
@@ -350,6 +383,8 @@ function createDiscordSurface({ channel, client = null, activeUser = null, timeo
     readMove,
     postEndOfRun,
     close,
+    // cycle 6g: /polycrisis end stops the active MessageCollector.
+    forceEnd,
     // Read methods that step 4+ will implement.
     readChoice: notYetImplemented('readChoice'),
     readConfirm: notYetImplemented('readConfirm'),

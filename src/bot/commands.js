@@ -19,6 +19,8 @@
 const { selectSeed, SEED_VARIANTS } = require('../../scripts/seed-variants');
 const { formatCrisisForDiscord } = require('../sim/surface');
 
+const { DEFAULT_PLAYER, DEFAULT_REGIME } = require('../sim/identity');
+
 // ---------------------------------------------------------------------------
 // command definitions
 // ---------------------------------------------------------------------------
@@ -43,6 +45,18 @@ const POLYCRISIS_COMMAND = {
           type: 3, // STRING
           required: false,
         },
+        {
+          name: 'as',
+          description: '(Optional) what to call you in this run. Blank for default ("the player").',
+          type: 3, // STRING
+          required: false,
+        },
+        {
+          name: 'governing',
+          description: '(Optional) what to call the institution you govern. Blank for default ("the regime").',
+          type: 3, // STRING
+          required: false,
+        },
       ],
     },
     {
@@ -57,7 +71,13 @@ const POLYCRISIS_COMMAND = {
       type: 1, // SUB_COMMAND
       // No options — the embed is built from the latest snapshot.
     },
-    // Future subcommands (cycle 6g+): end, artifact.
+    {
+      name: 'end',
+      description: 'End the active run in this channel/DM cleanly. The run is over; type /polycrisis start to play again.',
+      type: 1, // SUB_COMMAND
+      // No options — ends whichever run belongs to this user in this channel.
+    },
+    // Future subcommands (cycle 6g+): artifact.
   ],
 };
 
@@ -98,14 +118,28 @@ function buildPingReply(interaction, { roundtripMs = 0, wsLatencyMs = 0 } = {}) 
 // /polycrisis start handler
 // ---------------------------------------------------------------------------
 
-// Returns { kind: 'started', seed, crisis, embed, key, runId, warning? }
+// Returns { kind: 'started', seed, crisis, embed, key, runId, warning?, identity, followup? }
 //   or { kind: 'already_active', key }
-// Tests mock the interaction and assert on the returned shape.
 //
-// The bot translates this into the appropriate discord.js calls
-// (interaction.editReply / interaction.followUp).
+// `identity` is always set to { player, regime } using either the slash args
+// or the defaults. If either slash arg was omitted, `followup` is set to one
+// of:
+//   { kind: 'ask_player' }      — governing was given, player was not
+//   { kind: 'ask_regime' }      — as was given, governing was not
+//   { kind: 'ask_both' }        — neither was given
+//   { kind: 'ask_player_then_regime' } — identical to ask_both (the prompts run
+//                                       sequentially in a single DM thread)
+// The bot translates `followup` into a DM question thread (see bot.js).
+//
+// `pendingIdentity` on the entry is { player, regime } either of which may be
+// null. When the player DMs back (or after a fallback timeout), the entry is
+// updated with the resolved values. The `onTurnStart` callback inside
+// runDiscordLoop then snapshots the resolved identity into the entry so the
+// status embed reads correct values mid-run.
 function buildPolycrisisStartReply(interaction, { seedVariants = SEED_VARIANTS } = {}) {
   const seedIdArg = interaction.options.getString('seed_id');
+  const asArg = (interaction.options.getString('as') || '').trim();
+  const governingArg = (interaction.options.getString('governing') || '').trim();
   const key = runKey(interaction);
 
   if (activeRuns.has(key)) {
@@ -161,17 +195,61 @@ function buildPolycrisisStartReply(interaction, { seedVariants = SEED_VARIANTS }
   const { embed } = formatCrisisForDiscord(crisis, null);
 
   const runId = `discord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  // Identity resolution (R2: three-input matrix + fall back to defaults if
+  // the player doesn't answer the followup DM).
+  const playerFromArgs = asArg || null;
+  const regimeFromArgs = governingArg || null;
+
+  // followup kind: prompts the player needs to see in DM.
+  // Identity is applied directly when both args are provided; otherwise we
+  // set up a pendingIdentity capture loop and ask in DM.
+  let followup = null;
+  let player = playerFromArgs || DEFAULT_PLAYER;
+  let regime = regimeFromArgs || DEFAULT_REGIME;
+  let pendingIdentity = null;
+
+  if (!playerFromArgs && !regimeFromArgs) {
+    followup = { kind: 'ask_both' };
+    pendingIdentity = { player: null, regime: null, askedAt: new Date().toISOString() };
+    player = DEFAULT_PLAYER;
+    regime = DEFAULT_REGIME;
+  } else if (!playerFromArgs) {
+    followup = { kind: 'ask_player' };
+    pendingIdentity = { player: null, regime: regimeFromArgs, askedAt: new Date().toISOString() };
+    player = DEFAULT_PLAYER;
+    regime = regimeFromArgs || DEFAULT_REGIME;
+  } else if (!regimeFromArgs) {
+    followup = { kind: 'ask_regime' };
+    pendingIdentity = { player: playerFromArgs, regime: null, askedAt: new Date().toISOString() };
+    player = playerFromArgs;
+    regime = DEFAULT_REGIME;
+  }
+  // else: both provided, followup is null, pendingIdentity stays null.
+
+  const identity = { player, regime };
+
   const runState = {
     runId,
     userId: interaction.user.id,
+    userTag: interaction.user.tag,
     channelId: interaction.channelId,
     seed,
     crisis,
     startedAt: new Date().toISOString(),
+    // Identity fields. formatStatusEmbed reads `player` + `regime` (flat)
+    // so we set them top-level too.
+    identity,
+    player,
+    regime,
+    // Pending identity capture (if any). The DM reply handler (bot.js)
+    // updates these fields when the player DMs back; the first in-channel
+    // move resolves any unresolved fields to defaults.
+    pendingIdentity,
   };
   activeRuns.set(key, runState);
 
-  return { kind: 'started', seed, crisis, embed, key, runId, warning: seedWarning };
+  return { kind: 'started', seed, crisis, embed, key, runId, warning: seedWarning, identity, followup };
 }
 
 // ---------------------------------------------------------------------------
@@ -343,6 +421,71 @@ const STATUS_NOT_ACTIVE_RUN_TEXT =
   'No active run in this channel. Start one with `/polycrisis start` first, ' +
   'then `/polycrisis status` will show the current state.';
 
+// ---------------------------------------------------------------------------
+// /polycrisis end handler (cycle 6g)
+// ---------------------------------------------------------------------------
+
+/**
+ * /polycrisis end slash command — pure builder.
+ *
+ * Returns:
+ *   { kind: 'no_active_run', key }    — no run for this user/channel
+ *   { kind: 'ending', runState }      — ready to ask the loop to end
+ *
+ * The bot wraps the ending branch by:
+ *   1. setting `runState.endingBy = 'user-end'` so the next MessageCollector
+ *      event rejects with a sentinel "run-end-requested" error
+ *   2. posting an ephemeral "ending…" reply as the slash command ack
+ *   3. letting the runDiscordLoop's existing catch path post a regular
+ *      in-channel "run ended" message + "play again" hint, then clean up
+ *      activeRuns in its finally block
+ *
+ * The other run-end paths (collapse, max-turns, ::resign, inactivity) all
+ * converge on the same runDiscordLoop catch path. The `endingBy` flag tells
+ * the catch path how to frame the in-channel message ("ended by /polycrisis
+ * end" vs "inactivity timeout" vs "::resign" vs "collapse").
+ */
+function buildPolycrisisEndReply(interaction) {
+  const key = runKey(interaction);
+  const runState = activeRuns.get(key);
+  if (!runState) {
+    return { kind: 'no_active_run', key };
+  }
+  return { kind: 'ending', runState };
+}
+
+const END_NOT_ACTIVE_RUN_TEXT =
+  'No active run in this channel. Start one with `/polycrisis start` first, ' +
+  'then `/polycrisis end` will end the run.';
+
+const END_ACK_TEXT = '_Ending the run…_';
+
+const END_BOT_MESSAGE_TEXT =
+  '_Run ended by `/polycrisis end`._\n' +
+  'Type `/polycrisis start` to begin a new run.';
+
+// Identity capture (cycle 6g). Used by the bot's DM followup after /start.
+const IDENTITY_ASK_BOTH_DM_TEXT =
+  'Before the run begins — what shall we call you, and what do you call the ' +
+  'institution you govern?\n' +
+  'Reply in this DM with two lines:\n' +
+  '  Line 1: your name (e.g. "the president", "the council chair", or your own name)\n' +
+  '  Line 2: the institution (e.g. "the executive office", "the council of nine")\n' +
+  'Leave either or both lines blank for the default ("the player" / "the regime").';
+
+const IDENTITY_ASK_PLAYER_DM_TEXT =
+  'Before the run begins — what shall we call you?\n' +
+  'Reply in this DM with your name (or leave blank for "the player").';
+
+const IDENTITY_ASK_REGIME_DM_TEXT =
+  'Before the run begins — what do you call the institution you govern?\n' +
+  'Reply in this DM with the institution name (or leave blank for "the regime").';
+
+// Wait this long for a followup DM answer before falling back to defaults.
+// Generous — the simulation never stalls on this; it just resolves whatever
+// it has once the player sends their first in-channel move.
+const IDENTITY_DM_FALLBACK_MS = 5 * 60 * 1000; // 5 minutes
+
 // Step-2 followup hint for the bot to send after the embed (deprecated in 6c;
 // STEP3_HINT_TEXT replaces it once free-text moves work).
 const STEP2_FOLLOWUP_TEXT =
@@ -378,6 +521,7 @@ module.exports = {
   buildPolycrisisAdvisorReply,
   buildAdvisorButtonClickReply,
   buildPolycrisisStatusReply,
+  buildPolycrisisEndReply,
   buildAdvisorButtons,
   // Display text
   STEP2_FOLLOWUP_TEXT,
@@ -388,4 +532,11 @@ module.exports = {
   ADVISOR_IGNORED_CLICK_TEXT,
   ADVISOR_BUTTON_PREFIX,
   STATUS_NOT_ACTIVE_RUN_TEXT,
+  END_NOT_ACTIVE_RUN_TEXT,
+  END_ACK_TEXT,
+  END_BOT_MESSAGE_TEXT,
+  IDENTITY_ASK_BOTH_DM_TEXT,
+  IDENTITY_ASK_PLAYER_DM_TEXT,
+  IDENTITY_ASK_REGIME_DM_TEXT,
+  IDENTITY_DM_FALLBACK_MS,
 };

@@ -18,6 +18,9 @@
 //                of the active run (6 axes, bands, turn count, crisis title).
 //                The loop's onTurnStart callback snapshots the live state
 //                into the activeRuns entry so /status can read it.
+//   6g (step 7): /polycrisis end slash command for clean run end. Identity
+//                capture at /start (optional as:/governing: args + followup
+//                DM). Identity threaded into runLoop + consult() + status.
 //
 // Required env vars:
 //   DISCORD_BOT_TOKEN   — bot user token from https://discord.com/developers/applications
@@ -41,6 +44,7 @@ const {
   buildPolycrisisAdvisorReply,
   buildAdvisorButtonClickReply,
   buildPolycrisisStatusReply,
+  buildPolycrisisEndReply,
   STEP2_FOLLOWUP_TEXT,
   STEP3_HINT_TEXT,
   ALREADY_ACTIVE_TEXT,
@@ -48,6 +52,13 @@ const {
   ADVISOR_NOT_ACTIVE_RUN_TEXT,
   ADVISOR_IGNORED_CLICK_TEXT,
   STATUS_NOT_ACTIVE_RUN_TEXT,
+  END_NOT_ACTIVE_RUN_TEXT,
+  END_ACK_TEXT,
+  END_BOT_MESSAGE_TEXT,
+  IDENTITY_ASK_BOTH_DM_TEXT,
+  IDENTITY_ASK_PLAYER_DM_TEXT,
+  IDENTITY_ASK_REGIME_DM_TEXT,
+  IDENTITY_DM_FALLBACK_MS,
 } = require('./commands');
 
 const { createDiscordSurface } = require('./surface');
@@ -129,6 +140,16 @@ async function handlePolycrisisStart(interaction) {
   // Followup hint about free-text move handling (cycle 6c).
   await interaction.followUp({ content: STEP3_HINT_TEXT, ephemeral: true });
 
+  // Identity followup DM (cycle 6g): if the player did not provide both
+  // `as:` and `governing:` slash args, send a DM asking for the missing
+  // piece(s). The DM reply is handled by handleDmReply (a separate
+  // messageCreate listener). The simulation never waits on this; the first
+  // in-channel move triggers the loop with whatever identity we have
+  // resolved by that point (defaults applied via IDENTITY_DM_FALLBACK_MS).
+  if (result.followup) {
+    await sendIdentityFollowupDm(interaction, result.followup);
+  }
+
   // Spawn the run loop in the background. The loop calls
   // surface.readMove which uses a MessageCollector to await the player's
   // next message. The slash command handler returns immediately; the loop
@@ -140,6 +161,127 @@ async function handlePolycrisisStart(interaction) {
     console.error(`[bot] runDiscordLoop failed for ${result.key}:`, err);
     activeRuns.delete(result.key);
   });
+}
+
+/**
+ * sendIdentityFollowupDm: open or reuse a DM channel with the active user
+ * and post the appropriate identity-prompt text. Best-effort: if DM is
+ * unavailable (user has DMs disabled, bot blocked, etc.), the run proceeds
+ * with defaults.
+ *
+ * @param {import('discord.js').ChatInputCommandInteraction} interaction
+ *   The /start interaction.
+ * @param {object} followup - { kind: 'ask_player' | 'ask_regime' | 'ask_both' }
+ */
+async function sendIdentityFollowupDm(interaction, followup) {
+  const user = interaction.user;
+  let dm;
+  try {
+    dm = await user.createDM();
+  } catch (err) {
+    console.warn(`[bot] could not open DM to ${user.tag} for identity followup:`, err.message);
+    return;
+  }
+
+  let text;
+  switch (followup.kind) {
+    case 'ask_player':
+      text = IDENTITY_ASK_PLAYER_DM_TEXT;
+      break;
+    case 'ask_regime':
+      text = IDENTITY_ASK_REGIME_DM_TEXT;
+      break;
+    case 'ask_both':
+      text = IDENTITY_ASK_BOTH_DM_TEXT;
+      break;
+    default:
+      console.warn(`[bot] unknown followup kind: ${followup.kind}`);
+      return;
+  }
+
+  try {
+    await dm.send(text);
+  } catch (err) {
+    console.warn(`[bot] failed to send identity DM to ${user.tag}:`, err.message);
+  }
+}
+
+/**
+ * handleDmReply: messageCreate handler for DM messages from users with an
+ * active run. Resolves pendingIdentity fields on the run entry.
+ *
+ * Two-line DM (ask_both): parses the first non-empty line as player, the
+ * second as regime. Either or both can be blank for defaults.
+ *
+ * Single-line DM (ask_player / ask_regime): the entire content is the
+ * missing field.
+ *
+ * After resolving, the entry's player + regime fields are updated so the
+ * next onTurnStart snapshot (and the next /status call) reflects the new
+ * identity. The runDiscordLoop itself uses the captured identity once at
+ * runLoop() entry; mid-run updates apply to future turns via onTurnStart.
+ */
+async function handleDmReply(message) {
+  // Only DMs from real users (not bots, not system messages).
+  if (!message.channel || message.channel.type !== 1 /* DM */) return;
+  if (message.author?.bot) return;
+  if (!message.content) return;
+
+  // Find the user's active run across all channels. The activeRuns key
+  // includes channelId, so we scan all entries to find one owned by this user
+  // that has a pendingIdentity. For v1 with one-channel-per-user semantics
+  // this is one or zero entries in practice.
+  const userId = message.author.id;
+  let targetKey = null;
+  let targetEntry = null;
+  for (const [key, entry] of activeRuns.entries()) {
+    if (entry.userId === userId && entry.pendingIdentity) {
+      targetKey = key;
+      targetEntry = entry;
+      break;
+    }
+  }
+  if (!targetEntry) {
+    // Not a followup answer; either a stray DM or a message from before
+    // /start was called. The bot's readMove MessageCollector doesn't pick
+    // up DMs (it filters by channel), so this is ignored silently.
+    return;
+  }
+
+  const lines = message.content
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  // Resolve based on the pending followup kind.
+  const entry_pending = targetEntry.pendingIdentity;
+  let newPlayer = targetEntry.player;
+  let newRegime = targetEntry.regime;
+
+  if (entry_pending.player === null && entry_pending.regime === null) {
+    // ask_both: first line = player, second = regime (both can be blank).
+    newPlayer = (lines[0] || '').trim() || 'the player';
+    newRegime = (lines[1] || '').trim() || 'the regime';
+  } else if (entry_pending.player === null) {
+    // ask_player.
+    newPlayer = (lines[0] || message.content).trim() || 'the player';
+  } else if (entry_pending.regime === null) {
+    // ask_regime.
+    newRegime = (lines[0] || message.content).trim() || 'the regime';
+  }
+
+  targetEntry.player = newPlayer;
+  targetEntry.regime = newRegime;
+  targetEntry.identity = { player: newPlayer, regime: newRegime };
+  targetEntry.pendingIdentity = null;
+
+  try {
+    await message.reply(
+      `_Got it — you are ${newPlayer}, governing ${newRegime}._`
+    );
+  } catch (err) {
+    console.warn('[bot] failed to reply to identity DM:', err.message);
+  }
 }
 
 /**
@@ -165,6 +307,16 @@ async function runDiscordLoop(interaction, startResult) {
     activeUser: { id: user.id, tag: user.tag },
   });
 
+  // Store the surface reference on the run entry so /polycrisis end can
+  // call forceEnd() to stop the active MessageCollector. Without this,
+  // /end could only mark the run for end (via endingBy) and would have
+  // to wait up to 10 minutes for readMove's timeout. Storing the surface
+  // lets end resolve immediately.
+  const entryAtStart = activeRuns.get(startResult.key);
+  if (entryAtStart) {
+    entryAtStart.surface = surface;
+  }
+
   // onTurnStart: snapshot the pre-delta state + current crisis so /polycrisis
   // status can read them later. Mutates the activeRuns entry in place via
   // startResult.key (already established when /start was called).
@@ -175,30 +327,52 @@ async function runDiscordLoop(interaction, startResult) {
       entry.currentState = state;
       entry.currentCrisis = crisis;
       entry.bands = bands;
+      // If the player answered the identity DM after /start but before this
+      // turn started, mirror the latest resolved identity into the live
+      // snapshot so /status reads the correct values. The runLoop itself
+      // uses the captured identity from runLoop() entry (start time); this
+      // is purely for the status embed.
+      if (entry.identity) {
+        entry.player = entry.identity.player;
+        entry.regime = entry.identity.regime;
+      }
     }
   };
+
+  // Thread the captured identity into runLoop. The entry's player + regime
+  // were set at /start time (or fall back to defaults). Mid-run DM updates
+  // don't reach runLoop because it captured the identity once; this is
+  // documented as the v1 semantics. The status embed picks up later
+  // updates via onTurnStart.
+  const entry = activeRuns.get(startResult.key);
+  const identityForRun = entry && entry.identity
+    ? { player: entry.identity.player, regime: entry.identity.regime }
+    : null;
 
   try {
     await runLoop({
       surface,
       model: process.env.OPENROUTER_MODEL || 'minimax/minimax-m3',
-      // identity is null for step 3 (no /start as:<name> option yet).
-      // The loop's formatter handles null identity by leaving the
-      // description empty; the run log uses default "the player" / "the regime".
-      identity: null,
+      identity: identityForRun,
       renderTurn: formatCrisisForDiscord,
       onTurnStart,
     });
   } catch (err) {
-    // readMove timeout (player-quit after 10 min idle) or any other loop error.
-    // Surface it to the player as a plain-text message so they know what happened.
-    // Use a fresh channel.send (not surface.print) because the surface is being
-    // torn down by runLoop's finally block.
+    // readMove timeout (player-quit after 10 min idle), endingBy flag set
+    // by /polycrisis end (sentinel "run-ended-by-user" error), or any other
+    // loop error. Surface it to the player as a plain-text message so they
+    // know what happened. Use a fresh channel.send (not surface.print)
+    // because the surface is being torn down by runLoop's finally block.
+    let endText;
+    if (entry && entry.endingBy === 'user-end') {
+      endText = END_BOT_MESSAGE_TEXT;
+    } else if (err.message && err.message.startsWith('discord surface.readMove')) {
+      endText = `_(Run ended: ${err.message})_\nType \`/polycrisis start\` to begin a new run.`;
+    } else {
+      endText = `_(Run ended: ${err.message})_\nType \`/polycrisis start\` to begin a new run.`;
+    }
     try {
-      await channel.send(
-        `_(Run ended: ${err.message})_\n` +
-        `Type \`/polycrisis start\` to begin a new run.`
-      );
+      await channel.send(endText);
     } catch (sendErr) {
       console.error('[bot] failed to send run-end error message:', sendErr);
     }
@@ -306,7 +480,7 @@ async function handleAdvisorButtonClick(interaction) {
       crisis: crisisContext,
       state: runState.state || {},
       playerMove: '[player is consulting an advisor during the run]',
-      identity: null,
+      identity: runState.identity || null,
       model: process.env.OPENROUTER_MODEL || 'minimax/minimax-m3',
     });
 
@@ -355,6 +529,55 @@ async function handlePolycrisisStatus(interaction) {
   await interaction.reply({ embeds: [result.embed] });
 }
 
+/**
+ * handlePolycrisisEnd: /polycrisis end slash command handler.
+ *
+ * Marks the active run for clean end. The loop's active MessageCollector
+ * will reject on its next event with a sentinel error, which the
+ * runDiscordLoop catch path catches and surfaces to the player as the
+ * "run ended by /polycrisis end" message. The activeRuns entry is removed
+ * in runDiscordLoop's finally block.
+ *
+ * Rejects if no active run for this user/channel.
+ */
+async function handlePolycrisisEnd(interaction) {
+  const result = buildPolycrisisEndReply(interaction);
+
+  if (result.kind === 'no_active_run') {
+    await interaction.reply({
+      content: END_NOT_ACTIVE_RUN_TEXT,
+      ephemeral: true,
+    });
+    return;
+  }
+
+  // Mark the run for end (the runDiscordLoop catch path uses this for
+  // the in-channel message wording: "Run ended by /polycrisis end." vs
+  // "Run ended: <err.message>").
+  result.runState.endingBy = 'user-end';
+
+  // Stop the active MessageCollector immediately so the loop rejects
+  // and resolves through the existing runDiscordLoop catch path. The
+  // surface was stored on the entry when the loop started.
+  if (result.runState.surface && typeof result.runState.surface.forceEnd === 'function') {
+    try {
+      result.runState.surface.forceEnd();
+    } catch (err) {
+      console.warn('[bot] forceEnd failed:', err.message);
+    }
+  }
+
+  // Acknowledge the slash command before the loop's catch path resolves.
+  // The in-channel "run ended" message comes from runDiscordLoop (not
+  // from this handler) so the player sees both: the ephemeral ack here
+  // and the regular run-end message in the channel.
+  try {
+    await interaction.reply({ content: END_ACK_TEXT, ephemeral: true });
+  } catch (err) {
+    console.warn('[bot] /end ack failed:', err.message);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // client
 // ---------------------------------------------------------------------------
@@ -371,7 +594,7 @@ const client = new Client({
 client.once('ready', (c) => {
   console.log(`[bot] ready — logged in as ${c.user.tag} (id=${c.user.id})`);
   console.log(`[bot] watching ${c.guilds.cache.size} guild(s)`);
-  console.log('[bot] step 6 complete: /polycrisis status shows the current state of the active run.');
+  console.log('[bot] cycle 6g complete: /polycrisis end + identity capture at /start. Discord build plan step 7 (of 7) shipped.');
 });
 
 client.on('interactionCreate', async (interaction) => {
@@ -387,6 +610,8 @@ client.on('interactionCreate', async (interaction) => {
           await handlePolycrisisAdvisor(interaction);
         } else if (sub === 'status') {
           await handlePolycrisisStatus(interaction);
+        } else if (sub === 'end') {
+          await handlePolycrisisEnd(interaction);
         }
       }
     } else if (interaction.isButton()) {
@@ -408,6 +633,17 @@ client.on('interactionCreate', async (interaction) => {
     } catch (followUpErr) {
       console.error('[bot] followUp also failed:', followUpErr);
     }
+  }
+});
+
+// Cycle 6g: DM replies to the identity followup. Listens for any message
+// in a DM channel; if the sender has an active run with a pendingIdentity,
+// resolves it. Stray DMs (no active run, no pending identity) are ignored.
+client.on('messageCreate', async (message) => {
+  try {
+    await handleDmReply(message);
+  } catch (err) {
+    console.error('[bot] error handling DM reply:', err);
   }
 });
 
@@ -461,6 +697,7 @@ module.exports = {
   // Expose the pure builders for verification scripts.
   buildPingReply,
   buildPolycrisisStartReply,
+  buildPolycrisisEndReply,
   activeRuns,
   // runDiscordLoop is exported so verification scripts can test the
   // bot's loop-spawning logic with a mock interaction + channel.
@@ -470,4 +707,9 @@ module.exports = {
   // buildPolycrisisAdvisorReply / buildAdvisorButtonClickReply (the
   // discord-aware handlers handlePolycrisisAdvisor / handleAdvisorButtonClick
   // are not exported because they require a live discord.js context).
+  // 6g handlers — verification scripts can test handlePolycrisisEnd's
+  // pure path via buildPolycrisisEndReply. The discord-aware
+  // handlePolycrisisEnd is not exported (requires live discord.js context).
+  sendIdentityFollowupDm,
+  handleDmReply,
 };

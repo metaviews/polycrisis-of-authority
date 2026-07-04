@@ -522,3 +522,27 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Verified:** 39 of 39 main checks pass.
 - **Filed:** `wiki/prototypes/2026-07-03-cycle-6f-status.md`.
 - **Next:** cycle 6g (step 7) — polish + deployment. Final cycle in the discord build. Walkthrough sub-regression flakiness should be addressed separately.
+
+## 2026-07-04 — Cycle 6g: Discord /polycrisis end + identity capture (step 7 of 7)
+
+- **Action:** Filed `docs/15-discord-bot-cycle-6g.md`. Updated `src/bot/commands.js`, `src/bot/bot.js`, `src/bot/surface.js`. Imports added in `src/bot/commands.js` for `DEFAULT_PLAYER` / `DEFAULT_REGIME` from `src/sim/identity.js` so the run entry uses the same defaults as the terminal surface.
+- **New `end` subcommand** registered alongside `start` / `advisor` / `status`. No slash options. The discoverable surface for ending the active run.
+- **New optional `as` + `governing` slash string options** on `start`. Both default to omitted (→ defaults). discord enforces 100-char string cap implicitly.
+- **New `POLYCRISIS_COMMAND` `end` subcommand** documented as the public run-end surface; `::resign` (free-text sentinel in `surface.readMove`) remains as a hidden power-user shortcut. Both converge on the same runDiscordLoop catch path.
+- **Three-input identity capture matrix in `buildPolycrisisStartReply`:** both provided → identity applied directly; only one provided → followup DM asks for the missing one; neither provided → followup DM asks for both in two lines; player stays silent → defaults applied at first in-channel move.
+- **`activeRuns` entry shape change:** adds top-level `player` + `regime` (so `formatStatusEmbed` reads them unchanged) + `identity: { player, regime }` (passed to `runLoop` + `consult()`) + `pendingIdentity` (resolved by the DM listener) + `surface` (used by `/end`'s `forceEnd`) + `endingBy` (used by the run-end catch path's message wording).
+- **Identity threading:** `runDiscordLoop` reads `entry.identity` and passes it to `runLoop({ identity })`. `handleAdvisorButtonClick` reads `runState.identity` and passes it to `consult({ identity })`. `formatStatusEmbed` reads `runState.player` + `runState.regime` (already wired in 6f — no embed change).
+- **New `surface.forceEnd()` method** on the discord surface: stops the active `MessageCollector` (if any) with reason `'end'`, which `readMove`'s promise rejects with sentinel `"run ended by user request"`. Cycle 6g's `readMove` recognizes `reason === 'end'` and rejects with the sentinel message; `reason === 'time'` retains the existing inactivity timeout message. Idempotent.
+- **New `runDiscordLoop` catch path branching:** if `entry.endingBy === 'user-end'`, post `END_BOT_MESSAGE_TEXT` (a clean "Run ended by `/polycrisis end`." message); otherwise retain the existing `Run ended: ${err.message}` formatting. All run-end paths (collapse, max-turns, `::resign`, inactivity, `/end`) still converge on the same try/catch/finally.
+- **New `sendIdentityFollowupDm(interaction, followup)`** in bot.js: opens a DM to the active user via `user.createDM()`, posts the appropriate `IDENTITY_ASK_*_DM_TEXT` based on `followup.kind`. Best-effort: if DM is unavailable (user has DMs disabled), the run proceeds with defaults and a warning is logged.
+- **New `handleDmReply(message)`** in bot.js: `messageCreate` listener that scans `activeRuns` for a pending identity capture from this user; parses the message (single line or two lines for `ask_both`) and updates `entry.player` / `entry.regime` / `entry.identity`; clears `entry.pendingIdentity`. Replies with a short confirmation. Stray DMs (no active run, no pending identity) are ignored silently.
+- **New `IDENTITY_ASK_*_DM_TEXT` constants** in commands.js: the three DM prompt texts (player only, regime only, both).
+- **New `IDENTITY_DM_FALLBACK_MS = 5 * 60 * 1000`** constant. Documented intent: the simulation never stalls on identity capture; this is just the upper bound for how long a followup DM is honored before defaults are applied.
+- **interactionCreate dispatch** updated to route the `end` subcommand to `handlePolycrisisEnd`.
+- **New `client.on('messageCreate')` listener** routes DM messages to `handleDmReply`.
+- **Specs / docs:** `docs/15-discord-bot-cycle-6g.md` filed with the full R1–R4 design record + scope clarifications (deferred items: `/polycrisis artifact`, corpus-quote-during-typing, walkthrough sub-regression flakiness, crash-recovery hardening, deployment). All per-Q3, per-R5.
+- **Verification:** `/tmp/hermes-verify-6g-end-and-identity.sh` (new, to be created).
+- **Live-run confirmation skipped** (consistent with 6b–6f).
+- **Verified:** n of n main checks pass (filled in by verification run).
+- **Filed:** `wiki/prototypes/2026-07-04-cycle-6g-end-and-identity.md` (filled in after verification).
+- **Next:** deployment to the user's dedicated server, live-run confirmation, walkthrough. Discord build plan complete after this cycle ships.
