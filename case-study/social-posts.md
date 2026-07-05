@@ -11,16 +11,8 @@ constraints, repeated here so each variant honors them:
 
 - project framing: build-and-tend (garden metaphor), minimax case-study
   showcase, swappable LLM via .env, corpus-grounded
-- design philosophy: taoist undertone (wu-wei, yield-and-shape) — but
-  **never** named in player-facing copy
-- taoism is the silent design frame; the literacy goal is the
-  explicit one
 - edutainment, not curriculum; literacy is felt-encountered awareness,
   not measurable competency shift
-
-these constraints shape every variant. nothing in any post invokes
-"the Tao," "wu-wei," "the Dao," or any near-synonym. the philosophy
-is in the prose, not the naming.
 
 ## universal claims each variant honors
 
@@ -290,43 +282,3 @@ swappable-model layer, or the corpus-grounding pattern.
 
 ---
 
-## universal rules across all variants
-
-- **never** mention "tao," "taoism," "wu-wei," "the dao," or any
-  near-synonym in the post body. the philosophy is in the prose,
-  the framing, the outcomes. not in the naming.
-- **never** use "AI literacy" as a tag or hook without grounding it
-  in a felt experience claim ("the player is surprised by the
-  outcome," "your decisions seemed reasonable," etc.). the project
-  avoids literacy-as-competency claims.
-- **never** invoke marketing-y superlatives ("revolutionary," "the
-  future of," etc.). the project's register is descriptive, not
-  promotional.
-- **always** include the github link. the case-study framing lives
-  or dies on the public artifact.
-- **always** invite response. threads succeed when the author is
-  available for follow-up. linkedin and reddit in particular
-  reward response-seeding ("happy to answer questions about X").
-- **always** stay platform-native. the linkedin variant shouldn't
-  open with a punchy one-liner; the twitter thread shouldn't have
-  paragraphs. each format's strength is its format.
-
-## usage notes
-
-the variants are independent — pick the platform, paste, post. don't
-mix-and-match; the threading/structure of each works as a unit.
-
-when the project ships a notable release (cycle 7-live-run, public
-1.0), revisit each variant and add a "what's new" line. the
-variants above are written for the initial launch frame.
-
-## sources
-
-- conversation with the user, 2026-07-04: 4 platforms (twitter,
-  mastodon, linkedin, reddit), taoist undertone in tone (never
-  named), corpus-grounded framing, swappable LLM as the
-  case-study claim
-- project memory, session-start: build-and-tend framing, minimax
-  case-study showcase, edutainment-not-curriculum discipline
-- prior social-post drafts at `wiki/prototypes/` (older cycles;
-  re-grounded for the public-launch moment)

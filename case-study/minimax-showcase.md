@@ -125,24 +125,3 @@ before posting, the user should look at 2-3 recent
 a quick check of 2-3 recent posts takes ~10 minutes and avoids
 the post looking stylistically off in the channel.
 
-## constraint reminder
-
-post is technical and descriptive. no marketing superlatives
-("revolutionary," "groundbreaking"), no promo emoticons, no
-"🚀 launch announcement!" style opener. the minimax case-study
-framing is *the artifact, observably*, not *the artifact,
-hype-described*.
-
-the project's taoist undertone (wu-wei, yield-and-shape) stays
-in the design philosophy, not the showcase copy.
-
-## sources
-
-- conversation with the user, 2026-07-04: "draft from first
-  principles for what a reasonable showcase post looks like"
-- inferred channel conventions from open-source project showcase
-  posts on minimax-flavored community-discords
-- project memory: minimax case-study framing; never-name-taoism
-  discipline; corpus-grounded ground truth claim
-- deploy spec at `docs/16-deployment.md` provides the technical
-  context the showcase post references

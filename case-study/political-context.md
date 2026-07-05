@@ -5,9 +5,6 @@ tuned for three landing surfaces. All three honor the project's
 memory-baked load-bearing constraints:
 
 - the project is grounded in literacy + LLMs as case-study
-- the design philosophy carries a taoist undertone
-  (yield-and-shape, wu-wei) but **never** names taoism in
-  player-facing or reader-facing copy
 - edutainment is the discipline: felt-encountered awareness,
   not measurable competency shift
 - the project is not a curriculum and does not advertise as one
@@ -211,44 +208,3 @@ draft B is the most time-sensitive; expect to revise it as the
 political surface shifts. draft C is the most durable; it ages well.
 draft A is the canonical "this is the project" paragraph.
 
-## universal constraints across all three drafts
-
-- **never** name taoism, wu-wei, the dao, or any near-synonym
-  in reader-facing copy. the philosophy is in the framing —
-  yield-and-shape, surviving two crises without weakening the
-  third, the moment of realizing the collapse wasn't a
-  surprise. those phrases *are* the philosophy, disguised as
-  design claims.
-- **never** advertise as a curriculum, educational tool, or
-  measurement of any kind. the literacy claim is felt, not
-  measurable.
-- **never** make political endorsements (no party alignment,
-  no endorsement of specific legislation, no claim that any
-  side is "right"). the project simulates; it doesn't
-  advocate.
-- **always** anchor literacy claims in a felt experience
-  claim ("the moment where they realize," "you don't write
-  a quiz afterward; you just felt what policy actually
-  does"). the project's claim is on the experience side,
-  not the curriculum side.
-- **always** preserve the case-study thread: swappable LLM,
-  observable run artifacts, corpus-grounded mechanics. these
-  are load-bearing for the project's claim-to-minimax
-  cooperation; they survive across all three drafts.
-
-## sources
-
-- conversation with the user, 2026-07-04: three drafts (general
-  / current-events / historical-throughline), taoist
-  undertone (never named), surfaces left to the user
-- project memory, session-start: taoist design philosophy
-  carried silently; wu-wei encoded as design claims;
-  yield-and-shape surfaced in player-facing prose without
-  naming the tradition
-- 2026 political surface: deliberately abstract in draft B;
-  no specific event named, no specific institution named,
-  no specific actor named. respects the project's
-  non-endorsement constraint
-- prior political-context drafts at `wiki/prototypes/` from
-  phase 1 corpus synthesis (re-grounded for the public-
-  facing case-study moment)
