@@ -41,6 +41,18 @@ Cycle 8a expanded the entity corpus. 17 of 29 planned entities ship in this cycl
 - [AI and Power Dynamics](themes/ai-and-power-dynamics.md) — The trajectory from recognition of algorithms as invisible institutional powers to the current geopolitical reality of AI-driven arms races.
 - [AI and Digital Governance](themes/ai-and-digital-governance.md) — From early internet-era optimism to critical examination of algorithmic authority and the centralization of power.
 
+### Cycle 8b additions (2026-07-05)
+
+Cycle 8b expanded the theme corpus. 12 fully-fleshed themes ship in this cycle (no stubs). Themes are organized by the kind of connective axis they represent.
+
+**Power & institutions** — [State-AI Strategic Competition](themes/state-ai-strategic-competition.md) | [Compute as Geopolitics](themes/compute-as-geopolitics.md) | [Labor Displacement and Class](themes/labor-displacement-and-class.md) | [AI in Procurement and State Power](themes/ai-in-procurement-state-power.md)
+
+**Governance & law** — [Voluntary Framework vs Binding Regulation](themes/voluntary-framework-vs-binding-regulation.md) | [International Coordination Failure and Recovery](themes/international-coordination-failure-and-recovery.md) | [Transparency and Auditability](themes/transparency-and-auditability.md)
+
+**Economic & platform** — [Frontier-Firm AI Business Model](themes/frontier-firm-ai-business-model.md) | [Open Weights and Distribution](themes/open-weights-and-distribution.md) | [Synthetic Media and Information Environment](themes/synthetic-media-and-information-environment.md)
+
+**Civil society & culture** — [Civil Society Accountability Infrastructure](themes/civil-society-accountability-infrastructure.md) | [Talent Concentration and Labor Conditions](themes/talent-concentration-and-labor-conditions.md)
+
 ## Signals
 
 - [2026-05-21 — SpaceX's Data Center Gambit and the New AI Oligopoly](signals/2026-05-21-080902-spacex-data-center-ai-oligopoly.md) — Anthropic's $15B/year compute deal with SpaceX; Murdoch's media acquisition; UAE's oil-funded AI compute.
