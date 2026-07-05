@@ -21,6 +21,11 @@
 //   6g (step 7): /polycrisis end slash command for clean run end. Identity
 //                capture at /start (optional as:/governing: args + followup
 //                DM). Identity threaded into runLoop + consult() + status.
+//   7-deploy fix: load .env via dotenv at startup, BEFORE the REQUIRED_ENV
+//                check runs. pm2's env_file directive has quirks across
+//                versions; dotenv is reliable. The fix here is an in-process
+//                load — relies on the project layout (src/bot/bot.js →
+//                ../../.env) being stable across installs.
 //
 // Required env vars:
 //   DISCORD_BOT_TOKEN   — bot user token from https://discord.com/developers/applications
@@ -33,6 +38,17 @@
 //   DISCORD_BOT_TOKEN=... DISCORD_CLIENT_ID=... [DISCORD_GUILD_ID=...] node src/bot/bot.js
 
 const { Client, GatewayIntentBits, REST, Routes, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+const path = require('path');
+
+// Load .env from the install root (two levels up from src/bot/bot.js).
+// dotenv doesn't overwrite process.env keys that are already set, so
+// pm2's env_file directive (if used) wins for explicit overrides.
+const dotenvResult = require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+if (dotenvResult.error) {
+  // .env file missing or unparseable. REQUIRED_ENV check below will
+  // surface this as a clear missing-vars error if the bot can't proceed.
+  console.warn('[bot] dotenv: could not load .env:', dotenvResult.error.message);
+}
 
 const {
   PING_COMMAND,

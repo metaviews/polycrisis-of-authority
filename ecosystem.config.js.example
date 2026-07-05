@@ -16,8 +16,12 @@ module.exports = {
     // Example: cwd: '/home/yourname/polycrisis-of-authority'
     cwd: '/REPLACE/WITH/YOUR/ABSOLUTE/PATH/TO/polycrisis-of-authority',
 
-    // pm2 reads .env natively via env_file (no dotenv dep).
-    env_file: '.env',
+    // pm2 does NOT load .env — the bot loads it itself in-process
+    // via dotenv (see the load at the top of src/bot/bot.js).
+    // env_file directive intentionally omitted: dotenv is more
+    // reliable across pm2 versions and works for direct `node`
+    // invocation too (so `npm run bot` and `pm2 start` both work).
+    // env: {},  // reserved for future per-env-file overrides
 
     // Restart policy — survive transient failures.
     autorestart: true,
