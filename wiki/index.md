@@ -20,6 +20,22 @@ The Polycrisis wiki is grounded in the Metaviews archive (`../metaviews-website/
 - [OpenAI and Anthropic](entities/openai-anthropic.md) — The vanguard AI labs whose competitive race, safety debates, and corporate structures embody algorithmic centralization.
 - [Anthropic](entities/anthropic.md) — Key entity in discourse on powerful AI, Dario Amodei's framing, and the politics of AI development.
 
+### Cycle 8a additions (2026-07-05)
+
+Cycle 8a expanded the entity corpus. 17 of 29 planned entities ship in this cycle (9 fully-fleshed + 8 stubs). The remaining 12 stubs follow in cycle 8a-extension.
+
+**Frontier & mid-tier AI labs** — [Google DeepMind](entities/google-deepmind.md) (full) | [Mistral](entities/mistral.md) (full) | [DeepSeek](entities/deepseek.md) (full) | [xAI](entities/xai.md) (stub) | [Cohere](entities/cohere.md) (stub) | [Inflection AI](entities/inflection-ai.md) (stub) | [Meta AI](entities/meta-ai.md) (stub) | [Alibaba Qwen](entities/alibaba-qwen.md) (stub) | [Zhipu](entities/zhipu.md) (stub) | [Moonshot AI](entities/moonshot-ai.md) (stub)
+
+**State actors** — [EU AI Office](entities/eu-ai-office.md) (full) | [UK AISI](entities/uk-aisi.md) (full) | [NIST AI RMF](entities/nist.md) (full) | [White House AI Office](entities/white-house-ai-office.md) (stub) | [US Congress](entities/us-congress.md) (stub) | [China MIIT](entities/china-miit.md) (stub)
+
+**Multilateral + alliances** — [UN AI Advisory Body](entities/un-ai-advisory-body.md) (stub) | [OECD AI Policy Observatory](entities/oecd-ai-policy.md) (stub) | [Partnership on AI](entities/partnership-on-ai.md) (stub) | [Frontier Model Forum](entities/frontier-model-forum.md) (stub)
+
+**Civil society** — [AI Now Institute](entities/ai-now-institute.md) (full) | [Future of Life Institute](entities/future-of-life-institute.md) (stub) | [RAND Corporation](entities/rand-corporation.md) (full) | [Algorithmic Justice League](entities/algorithmic-justice-league.md) (stub)
+
+**Press + analysis** — [Stratechery](entities/stratechery.md) (full)
+
+**Standards** — [IEEE 7000-series / Ethically Aligned Design](entities/ieee-7000.md) (stub)
+
 ## Themes
 
 - [AI and Power Dynamics](themes/ai-and-power-dynamics.md) — The trajectory from recognition of algorithms as invisible institutional powers to the current geopolitical reality of AI-driven arms races.
