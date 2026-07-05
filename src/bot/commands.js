@@ -61,19 +61,19 @@ const POLYCRISIS_COMMAND = {
     },
     {
       name: 'advisor',
-      description: 'Consult an advisor during an active run. Posts 5 buttons; click one to see the advisor\'s view.',
+      description: 'Consult an advisor during a run. Posts 5 buttons; click one to see their view.',
       type: 1, // SUB_COMMAND
       // No options — the choice is made via buttons, not slash options.
     },
     {
       name: 'status',
-      description: 'Show the current state of the active run (6 axes, bands, turn count, crisis).',
+      description: 'Show the current state of the active run (6 axes, bands, turn, crisis).',
       type: 1, // SUB_COMMAND
       // No options — the embed is built from the latest snapshot.
     },
     {
       name: 'end',
-      description: 'End the active run in this channel/DM cleanly. The run is over; type /polycrisis start to play again.',
+      description: 'End the active run in this channel/DM. Type /polycrisis start to play again.',
       type: 1, // SUB_COMMAND
       // No options — ends whichever run belongs to this user in this channel.
     },
