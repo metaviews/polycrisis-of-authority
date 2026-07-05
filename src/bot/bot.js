@@ -607,7 +607,7 @@ const client = new Client({
   ],
 });
 
-client.once('ready', (c) => {
+client.once('clientReady', (c) => {
   console.log(`[bot] ready — logged in as ${c.user.tag} (id=${c.user.id})`);
   console.log(`[bot] watching ${c.guilds.cache.size} guild(s)`);
   console.log('[bot] cycle 6g complete: /polycrisis end + identity capture at /start. Discord build plan step 7 (of 7) shipped.');
