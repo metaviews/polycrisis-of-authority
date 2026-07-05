@@ -14,6 +14,22 @@ The Polycrisis wiki is grounded in the Metaviews archive (`../metaviews-website/
 - [Automation of Law](concepts/automation-of-law.md) — Integration of AI into legal systems, law enforcement, and governance; the trade-off between efficiency and accountability.
 - [Agentic AI](concepts/agentic-ai.md) — The paradigm shift from static AI tools to autonomous systems that coordinate, negotiate, and execute actions.
 
+### Cycle 8c additions (2026-07-05)
+
+Cycle 8c expanded the concept corpus. 18 fully-fleshed concepts ship in this cycle (no stubs). Concepts are organized by what abstract dynamic they represent.
+
+**AI capability** — [Frontier Capability](concepts/frontier-capability.md) | [Capability Evaluation](concepts/capability-eval.md) | [Alignment](concepts/alignment.md) | [Interpretability](concepts/interpretability.md)
+
+**Risk and safety** — [Catastrophic Risk](concepts/catastrophic-risk.md) | [Misuse and Dual-Use](concepts/misuse-and-double-use.md) | [Dual-Use Research](concepts/dual-use-research.md) | [Robustness and Distribution Shift](concepts/robustness-and-distribution-shift.md)
+
+**Economic** — [Labor Displacement](concepts/labor-displacement.md) | [Productivity Paradox](concepts/productivity-paradox.md) | [Platform Economics](concepts/platform-economics.md)
+
+**Institutional and political** — [Regulatory Capture](concepts/regulatory-capture.md) | [Procurement Power](concepts/procurement-power.md) | [Epistemic Trust](concepts/epistemic-trust.md)
+
+**Data and infrastructure** — [Data Provenance](concepts/data-provenance.md) | [Compute Governance](concepts/compute-governance.md)
+
+**Content** — [Content Provenance](concepts/content-provenance.md) | [Model Collapse](concepts/model-collapse.md)
+
 ## Entities
 
 - [OpenAI](entities/openai.md) — Central corporate actor in the AI arms race, examined through Sam Altman's geopolitical claims and corporate strategy.
