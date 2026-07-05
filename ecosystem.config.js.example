@@ -1,0 +1,40 @@
+// ~/polycrisis-of-authority/ecosystem.config.js
+// pm2 config for the Polycrisis discord bot.
+//
+// Why this file exists at all: pm2 needs a config object describing the
+// process. We commit this as `ecosystem.config.js.example` (no secrets,
+// no user-specific paths) and copy it to ecosystem.config.js for
+// deployment. Each user fills in their own `cwd` path.
+//
+// This file lands in cycle 7-pm2 properly; for now it's a manual template.
+
+module.exports = {
+  apps: [{
+    name: 'polycrisis-bot',
+    script: 'src/bot/bot.js',
+    // REPLACE the line below with your absolute install path.
+    // Example: cwd: '/home/yourname/polycrisis-of-authority'
+    cwd: '/REPLACE/WITH/YOUR/ABSOLUTE/PATH/TO/polycrisis-of-authority',
+
+    // pm2 reads .env natively via env_file (no dotenv dep).
+    env_file: '.env',
+
+    // Restart policy — survive transient failures.
+    autorestart: true,
+    max_restarts: 10,
+    min_uptime: '10s',
+    restart_delay: 5000,
+    max_memory_restart: '512M',
+
+    // Logs — all paths inside the install dir, owned by you.
+    out_file: './logs/bot.out.log',
+    error_file: './logs/bot.err.log',
+    merge_logs: true,
+    log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+
+    // Lifecycle.
+    kill_timeout: 8000,
+    listen_timeout: 8000,
+    time: true,
+  }],
+};
