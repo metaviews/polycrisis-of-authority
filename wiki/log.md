@@ -547,6 +547,29 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Filed:** `wiki/prototypes/2026-07-04-cycle-6g-end-and-identity.md` (filled in after verification).
 - **Next:** deployment to the user's dedicated server, live-run confirmation, walkthrough. Discord build plan complete after this cycle ships.
 
+## 2026-07-04 — Deployment spec filed (revised)
+
+- **Action:** Filed `docs/16-deployment.md` (single-doc, ~760 lines). Single-doc shape per user ground.
+- **REVISION (later same day):** user grounded "before we proceed with install, let's make some modifications to the intended deployment. i do not want anything installed system wide. instead everything should reside within a /home/user directory. this isn't just about us, we're publishing this publicly, so that means other users could follow these instructions, which means they should not be custom to our environment. we'll still with assuming a debian/ubuntu environment, but otherwise everything in the /home/user directory (where user is the user who uses the software)." Spec rewritten to reflect this.
+- **Revised 8 sections** (was 9; old §7 security hardening dropped): §1 install+run, §2 secrets+config, §3 pm2 supervision, §4 sqlite persistence, §5 monitoring+observability, §6 webhook liveness, §7 upgrade+rollback, §8 live-run confirmation.
+- **Path conventions** (all under `$HOME` / `~/`, public-readiness):
+  - install dir: `~/polycrisis-of-authority/` (visible, simple)
+  - logs: `./logs/` inside the install dir
+  - db: `~/.local/share/polycrisis/bot.db` (XDG_DATA_HOME style)
+  - heartbeat file: `./logs/heartbeat.json` inside the install dir
+  - no service account; no `/opt/polycrisis`; no `/var/lib/polycrisis`; no `/var/log/polycrisis`
+- **pm2 launched as the user** under the user's shell; no systemd autostart by default. Optional opt-in systemd user service documented in §3 alternative.
+- **§7 (security hardening) is dropped from this guide** at user grounding. Reasoning: this guide's audience is "anyone with a fresh Debian/Ubuntu user account"; OS-level hardening (ssh-key-only, fail2ban, ufw, unattended-upgrades) is the user's responsibility and is documented elsewhere (VPS provider docs / OS security guides). What stays in the guide: `.env` permissions discipline (`0600`), heartbeat file in user dir, log dir in user dir (no system-wide file writes anywhere in the runtime path).
+- **Pending grounding inside each section** (rendered as callouts in the spec; resolved where the user pre-confirmed):
+  - ~~§4.1 backups~~ — n/a, deleted with the old §7 area; not in revised shape
+  - §5.1 — heartbeat fields: `(source, kind, ts)` plus `turnNumber, runId` for debug (resolved during revision)
+  - ~~§7.1, §7.2, §7.3~~ — n/a, deleted with §7
+  - §2 refactor scope: confirm swappable LLM client exists in `src/sim/` before §2 implementation
+- **Cycle plan (8 cycles total in series 7-x):** `cycle 7-install` → `cycle 7-secrets` → `cycle 7-pm2` → `cycle 7-sqlite` → `cycle 7-monitoring` → `cycle 7-webhook` → `cycle 7-upgrade` → `cycle 7-live-run`. Each ships a per-cycle ad-hoc verification script at `/tmp/hermes-verify-deploy-<section>.sh`.
+- **Spec policy reaffirmed:** files first, R1–R4-style grounding before any code/commands, no `sudo`-mediated system writes, the public-readiness principle from the user grounds every path choice.
+- **Filed:** `wiki/prototypes/2026-07-04-cycle-deploy-spec.md` (updated to reflect the revision).
+- **Next:** cycle 7-install when user signals "start the deploy," grounded before any code lands.
+
 ## 2026-07-04 — Deployment spec filed
 
 - **Action:** Filed `docs/16-deployment.md` (single-doc, 1684 lines). Single-doc shape per user ground.
@@ -558,7 +581,7 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
   - §7.1 — operator's ssh key: spec assumes pre-existing
   - §7.2 — operator-login user + `sudo -u polycrisis` flow
   - §7.3 — ssh port: keep 22 (default) or move to non-standard
-  - §2 refactor scope: confirm `src/sim/openrouter-client` swappable LLM exists before §2 implementation; if not, §2 includes a refactor cycle
+  - §2 refactor scope: confirm `src/sim/openrouter-client` swappable LLM exists before §2 implementation; if not, §2 grows a refactor cycle
 - **Cycle plan (10 cycles total in series 7-x):** `cycle 7-install` → `cycle 7-secrets` → `cycle 7-pm2` → `cycle 7-sqlite` → `cycle 7-monitoring` → `cycle 7-webhook` → `cycle 7-security` → `cycle 7-upgrade` → `cycle 7-live-run`. Each ships a per-cycle ad-hoc verification script at `/tmp/hermes-verify-deploy-<section>.sh`.
 - **Spec policy reaffirmed:** files first, R1–R4-style grounding before each remote command, no remote commands without user confirmation, project handoff-protocol discipline preserved.
 - **Verified:** the spec itself is structural prose, not a behavior claim, so no per-cycle verification script yet. Each implementation cycle will have its own.
