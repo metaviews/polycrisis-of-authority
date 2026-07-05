@@ -493,13 +493,27 @@ const STEP2_FOLLOWUP_TEXT =
   'arrives in step 3 (cycle 6c) — for now, type `/ping` or `/polycrisis start` again._';
 
 // Step-3 hint: tells the player to type their policy as a message in the channel.
-// The bot's MessageCollector (inside surface.readMove) is waiting for the next
-// message from this user. The "this is a move" framing is important — players
-// might otherwise expect menu-style interaction.
+// Might otherwise expect menu-style interaction. Cycle 7-walkthrough-fix-2:
+// this is now also used as the body of the intro embed at /start, plus the
+// player-facing hint followup.
 const STEP3_HINT_TEXT =
-  '_Type your policy as a message in this channel. The simulation will interpret your words and ' +
+  'Type your policy as a message in this channel. The simulation will interpret your words and ' +
   'post the next crisis. Send `::resign` to end the run (no confirmation required). ' +
-  'The run ends after a collapse or ~10 minutes of inactivity._';
+  'The run ends after a collapse or ~10 minutes of inactivity.';
+
+// Cycle 7-walkthrough-fix-2: longer intro text. Posted as the description
+// field of the intro embed at /start before the engine takes over and
+// posts the turn-1 crisis embed. Mirrors the terminal's pre-run framing
+// (logo + run-id + model + identity + axis legend + move instructions)
+// adapted for discord's affordances (no wide text, no ascii art).
+const INTRO_TEXT =
+  'Polycrisis of Authority — a simulation of governing through AI policy crises.\n\n' +
+  'Each turn, you read the situation, the pressure, and the decision point, then write your policy in your own words. ' +
+  'The simulation interprets your words and shifts the regime\'s position across six axes: ' +
+  '**legitimacy, fiscal_slack, factional_alignment, ecological_debt, narrative_coherence, capability**.\n\n' +
+  'There is no victory condition. The regime either holds or it falls. Duration is the metric.\n\n' +
+  'Type your policy as the next message in this channel. The bot will interpret it and post the next crisis.\n' +
+  'Send `::resign` to end the run early. Use `/polycrisis advisor` to consult one of five grounded advisor voices before a turn, or `/polycrisis status` to see current state.';
 
 // Already-active message text (sent as ephemeral reply).
 const ALREADY_ACTIVE_TEXT =
@@ -526,6 +540,7 @@ module.exports = {
   // Display text
   STEP2_FOLLOWUP_TEXT,
   STEP3_HINT_TEXT,
+  INTRO_TEXT,
   ALREADY_ACTIVE_TEXT,
   ADVISOR_HEADER_TEXT,
   ADVISOR_NOT_ACTIVE_RUN_TEXT,

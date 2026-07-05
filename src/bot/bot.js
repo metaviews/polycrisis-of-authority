@@ -62,7 +62,7 @@ const {
   buildPolycrisisStatusReply,
   buildPolycrisisEndReply,
   STEP2_FOLLOWUP_TEXT,
-  STEP3_HINT_TEXT,
+  INTRO_TEXT,
   ALREADY_ACTIVE_TEXT,
   ADVISOR_HEADER_TEXT,
   ADVISOR_NOT_ACTIVE_RUN_TEXT,
@@ -142,19 +142,55 @@ async function handlePolycrisisStart(interaction) {
     return;
   }
 
-  // Defer the reply so we can take time to build the crisis embed.
+  // Defer the reply so we can take time to build the intro embed.
   // Discord requires a reply within 3s otherwise the interaction fails.
   await interaction.deferReply();
 
+  // Cycle 7-walkthrough-fix-2: the preview embed that used to be posted
+  // here was a duplicate of turn 1's crisis (the engine posts the same
+  // seed at turn 1 now that buildPolycrisisStartReply forwards `seed`).
+  // We drop the preview embed from this handler. The engine owns turn-1.
+  // What we DO post: a single intro embed with run metadata, identity,
+  // axis legend, and move instructions. Mirrors the terminal's pre-run
+  // output (logo + run-id + model + identity + axis legend + instructions)
+  // adapted for discord's affordances (no wide text, no ascii art).
+
+  const entryForIntro = activeRuns.get(result.key);
+  const runMeta = entryForIntro
+    ? `${entryForIntro.runId} · model: ${process.env.OPENROUTER_MODEL || 'minimax/minimax-m3'}`
+    : result.runId
+      ? `${result.runId} · model: ${process.env.OPENROUTER_MODEL || 'minimax/minimax-m3'}`
+      : `model: ${process.env.OPENROUTER_MODEL || 'minimax/minimax-m3'}`;
+
+  const introEmbed = new EmbedBuilder()
+    .setTitle('Polycrisis of Authority — run started')
+    .setDescription(INTRO_TEXT)
+    .addFields(
+      { name: 'Run', value: runMeta, inline: false },
+      {
+        name: 'Identity',
+        value: `You are **${result.identity.player}**, governing **${result.identity.regime}**.`,
+        inline: false,
+      },
+      {
+        name: 'How to play',
+        value:
+          'Type your policy as the next message in this channel. The bot will interpret it and post the next crisis. ' +
+          'Slash commands: `/polycrisis advisor` (consult), `/polycrisis status` (state), `/polycrisis end` (end run). ' +
+          'Free-text resignation: send `::resign`.',
+        inline: false,
+      },
+    )
+    .setColor(0x6b8a7a); // muted archival green
+
+  // If the seed_id was unknown or unset, surface that as a warning before
+  // the intro embed (not as a duplicate crisis).
   if (result.warning) {
     await interaction.editReply({ content: result.warning });
-    await interaction.followUp({ embeds: [result.embed] });
+    await interaction.followUp({ embeds: [introEmbed] });
   } else {
-    await interaction.editReply({ embeds: [result.embed] });
+    await interaction.editReply({ embeds: [introEmbed] });
   }
-
-  // Followup hint about free-text move handling (cycle 6c).
-  await interaction.followUp({ content: STEP3_HINT_TEXT, ephemeral: true });
 
   // Identity followup DM (cycle 6g): if the player did not provide both
   // `as:` and `governing:` slash args, send a DM asking for the missing
