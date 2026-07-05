@@ -370,6 +370,12 @@ async function runDiscordLoop(interaction, startResult) {
       surface,
       model: process.env.OPENROUTER_MODEL || 'minimax/minimax-m3',
       identity: identityForRun,
+      // Pass the seed object the builder already selected so turn-1 in
+      // the engine matches the preview embed the player saw at /start.
+      // Without this, runLoop called selectSeed() again at turn 1 and
+      // produced a different crisis (live deploy 2026-07-05 walkthrough
+      // feedback — "two seeds presented, the first was ignored").
+      seed: startResult.seed || null,
       renderTurn: formatCrisisForDiscord,
       onTurnStart,
     });

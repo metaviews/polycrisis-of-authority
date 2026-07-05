@@ -128,7 +128,13 @@ async function consultAdvisorShort(voice, crisis, state, identity = null) {
 //   surface: SurfaceAdapter (required)
 //   model: string (optional, for run log metadata)
 //   maxTurns: number (optional, default 30)
-//   seedId: string (optional, use a specific seed for turn 1; otherwise random)
+//   seed: object (optional, use a specific seed object at turn 1; otherwise
+//         random). Shape: { id, fragment, actor, failurePattern, focalAxes,
+//         allActors } — produced by buildPolycrisisStartReply and reused
+//         by runLoop. If you only have an id, prefer seedId + let the loop
+//         look up the metadata in SEED_VARIANTS (v1 backward-compat path).
+//   seedId: string (optional, used only when `seed` is not supplied;
+//         looks up the seed metadata from SEED_VARIANTS by id)
 //   identity: { player: string, regime: string } (optional — if omitted, the
 //             loop will ask the surface to capture it via surface.readIdentity
 //             or fall back to defaults)
@@ -149,7 +155,8 @@ async function runLoop(options) {
     surface,
     model = process.env.OPENROUTER_MODEL || 'minimax/minimax-m3',
     maxTurns = MAX_TURNS,
-    seedId = null,
+    seed: seedArg = null,
+    seedId: seedIdArg = null,
     identity: identityArg = null,
     renderTurn = null,
     onTurnStart = null,
@@ -176,8 +183,9 @@ async function runLoop(options) {
 
   let state = { ...INITIAL_STATE };
   let turn = 0;
+  const seedId = (seedArg && seedArg.id) || seedIdArg || null;
   let usedSeedIds = seedId ? [seedId] : [];
-  let usedActors = [];
+  let usedActors = (seedArg && seedArg.actor) ? [seedArg.actor] : [];
   let usedAtmospherics = [];
   const turns = [];
   let outcome = 'no-collapse';
@@ -203,10 +211,15 @@ async function runLoop(options) {
       let seedFragment = null;
       let actor = null;
       if (turn === 1) {
-        // seedId (passed in by /polycrisis start seed-id:<id>) skips the
-        // weighted-random selection and uses the specified seed directly.
+        // The caller (discord bot's buildPolycrisisStartReply) can supply a
+        // pre-selected `seed` object so the engine's turn-1 crisis matches
+        // exactly what the user saw as the seed preview. If only `seedId`
+        // is supplied (legacy / TTY path), look the seed up by id in
+        // SEED_VARIANTS. Otherwise, do a fresh random selection.
         let seed;
-        if (seedId) {
+        if (seedArg) {
+          seed = seedArg;
+        } else if (seedId) {
           const seeds = require('../../scripts/seed-variants').SEED_VARIANTS;
           seed = seeds.find((s) => s.id === seedId);
           if (!seed) {
