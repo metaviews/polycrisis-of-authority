@@ -30,6 +30,20 @@ Cycle 8c expanded the concept corpus. 18 fully-fleshed concepts ship in this cyc
 
 **Content** — [Content Provenance](concepts/content-provenance.md) | [Model Collapse](concepts/model-collapse.md)
 
+### Cycle 9b additions (2026-07-05)
+
+Cycle 9b expanded the concept corpus further. 20 fully-fleshed concepts ship in this cycle (no stubs) — these are the most heavily-referenced forward-references from cycle 8c's substantive entries.
+
+**Frontier & distribution** — [Chinese Frontier](concepts/chinese-frontier.md) | [Open Weights](concepts/open-weights.md) | [Platform Strategy](concepts/platform-strategy.md) | [Distribution Advantage](concepts/distribution-advantage.md) | [Capabilities Evaluation](concepts/capabilities-eval.md) | [Sovereign AI](concepts/sovereign-ai.md)
+
+**Technical substrate** — [Cost Efficiency](concepts/cost-efficiency.md) | [MoE Architecture](concepts/moe-architecture.md) | [Retrieval Models](concepts/retrieval-models.md) | [Enterprise Deployment](concepts/enterprise-deployment.md)
+
+**Accountability & transparency** — [Accountability](concepts/accountability.md) | [Transparency](concepts/transparency.md) | [Algorithmic Bias](concepts/algorithmic-bias.md) | [Infrastructure Critique](concepts/infrastructure-critique.md) | [AI Accountability Database](concepts/ai-accountability-database.md)
+
+**Geopolitical** — [AI Cold War](concepts/ai-cold-war.md) | [Chinese Policy](concepts/chinese-policy.md)
+
+**Regulatory** — [State Regulation](concepts/state-regulation.md) | [AI Act Enforcement](concepts/ai-act-enforcement.md) | [AI Services Registration](concepts/ai-services-registration.md)
+
 ## Entities
 
 - [OpenAI](entities/openai.md) — Central corporate actor in the AI arms race, examined through Sam Altman's geopolitical claims and corporate strategy.
