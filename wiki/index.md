@@ -38,7 +38,7 @@ Cycle 8c expanded the concept corpus. 18 fully-fleshed concepts ship in this cyc
 
 ### Cycle 8a additions (2026-07-05)
 
-Cycle 8a expanded the entity corpus. 17 of 29 planned entities ship in this cycle (9 fully-fleshed + 8 stubs). The remaining 12 stubs follow in cycle 8a-extension.
+Cycle 8a expanded the entity corpus. 21 of 29 planned entities ship in this cycle (9 fully-fleshed + 12 stubs). The remaining 8 entries follow in cycle 8a-extension.
 
 **Frontier & mid-tier AI labs** — [Google DeepMind](entities/google-deepmind.md) (full) | [Mistral](entities/mistral.md) (full) | [DeepSeek](entities/deepseek.md) (full) | [xAI](entities/xai.md) (stub) | [Cohere](entities/cohere.md) (stub) | [Inflection AI](entities/inflection-ai.md) (stub) | [Meta AI](entities/meta-ai.md) (stub) | [Alibaba Qwen](entities/alibaba-qwen.md) (stub) | [Zhipu](entities/zhipu.md) (stub) | [Moonshot AI](entities/moonshot-ai.md) (stub)
 
@@ -46,9 +46,19 @@ Cycle 8a expanded the entity corpus. 17 of 29 planned entities ship in this cycl
 
 **Multilateral + alliances** — [UN AI Advisory Body](entities/un-ai-advisory-body.md) (stub) | [OECD AI Policy Observatory](entities/oecd-ai-policy.md) (stub) | [Partnership on AI](entities/partnership-on-ai.md) (stub) | [Frontier Model Forum](entities/frontier-model-forum.md) (stub)
 
-**Civil society** — [AI Now Institute](entities/ai-now-institute.md) (full) | [Future of Life Institute](entities/future-of-life-institute.md) (stub) | [RAND Corporation](entities/rand-corporation.md) (full) | [Algorithmic Justice League](entities/algorithmic-justice-league.md) (stub)
+**Civil society** — [AI Now Institute](entities/ai-now-institute.md) (full) | [RAND Corporation](entities/rand-corporation.md) (full)
 
 **Press + analysis** — [Stratechery](entities/stratechery.md) (full)
+
+### Cycle 8a-extension additions (2026-07-05)
+
+Cycle 8a-extension closes the corpus-dependency gap for entity refs. 4 entries ship, all referenced by other entries.
+
+**Civil society (closures)** — [Future of Life Institute](entities/future-of-life-institute.md) (stub) | [Algorithmic Justice League](entities/algorithmic-justice-league.md) (stub)
+
+**Parent companies (closures)** — [Microsoft](entities/microsoft.md) (stub) | [Google (Alphabet)](entities/google.md) (stub)
+
+Plus a typo fix on `wiki/entities/ai-now-institute.md`'s `related_entities` (`futur-of-life-institute` → `future-of-life-institute`).
 
 **Standards** — [IEEE 7000-series / Ethically Aligned Design](entities/ieee-7000.md) (stub)
 

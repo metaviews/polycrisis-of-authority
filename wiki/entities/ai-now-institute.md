@@ -16,7 +16,7 @@ related_concepts:
   - infrastructure-critique
   - ai-accountability-database
 related_entities:
-  - futur-of-life-institute
+  - future-of-life-institute
   - rand-corporation
   - algorithmic-justice-league
 related_themes:
