@@ -81,6 +81,7 @@ const { createDiscordSurface } = require('./surface');
 const { runLoop } = require('../sim/run-loop');
 const { formatCrisisForDiscord, formatStatusEmbed } = require('../sim/surface');
 const { consult } = require('../sim/advisors');
+const { notifyRunStart, notifyRunEnd } = require('./notifications');
 
 // ---------------------------------------------------------------------------
 // config
@@ -401,6 +402,18 @@ async function runDiscordLoop(interaction, startResult) {
     ? { player: entry.identity.player, regime: entry.identity.regime }
     : null;
 
+  // Best-effort run-start notification. Errors are caught inside
+  // notifyRunStart and never throw — a missed notification never breaks
+  // gameplay. The notification uses the same identity that runLoop will
+  // use below.
+  await notifyRunStart({
+    client,
+    identity: identityForRun,
+    runId: startResult.runId || startResult.key,
+    seedId: startResult.seed && startResult.seed.id,
+    model: process.env.OPENROUTER_MODEL || 'minimax/minimax-m3',
+  });
+
   try {
     await runLoop({
       surface,
@@ -439,6 +452,22 @@ async function runDiscordLoop(interaction, startResult) {
     // Always clean up the activeRuns entry. This is critical: if we don't,
     // the player can't /start a new run until bot restart.
     activeRuns.delete(startResult.key);
+
+    // Best-effort run-end notification. Fires on both normal completion
+    // AND catch path so every run gets one notification regardless of
+    // outcome. The notification uses the entry's endingBy + turn count
+    // (or fall-through defaults if the entry was already cleared by the
+    // surface tear-down).
+    await notifyRunEnd({
+      client,
+      identity: entry && entry.identity
+        ? { player: entry.identity.player, regime: entry.identity.regime }
+        : null,
+      runId: startResult.runId || startResult.key,
+      outcome: (entry && entry.endingBy) || 'unknown',
+      turnCount: entry && typeof entry.currentTurn === 'number' ? entry.currentTurn : null,
+      model: process.env.OPENROUTER_MODEL || 'minimax/minimax-m3',
+    });
   }
 }
 

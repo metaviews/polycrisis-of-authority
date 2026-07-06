@@ -79,15 +79,34 @@ Copy `.env.example` to `.env`:
 cp .env.example .env
 ```
 
-Edit `.env` and fill in the three values from steps 1, 2, and 4:
+Edit `.env` and fill in the four values from steps 1, 2, and 4 (and optionally step 6.5):
 
 ```
 DISCORD_BOT_TOKEN=<token from step 2>
 DISCORD_CLIENT_ID=<application id from step 1>
 DISCORD_GUILD_ID=<server id from step 4>
+DISCORD_NOTIFICATION_CHANNEL_ID=<channel id from step 6.5 — optional>
 ```
 
 **`.env` is gitignored. Never commit it.** If you accidentally commit a token, reset it immediately in the dev portal and update `.env`.
+
+### Step 6.5 (optional) — Set up run notifications
+
+If you want the bot to post a discord embed to a channel every time
+someone starts or ends a polycrisis run (useful for a "play log"
+channel or for moderators who want to see what's happening):
+
+1. In your discord client, go to **User Settings > Advanced > Developer Mode** (turn it on).
+2. Right-click the channel where you want notifications sent.
+3. Click **Copy Channel ID**. That's your `DISCORD_NOTIFICATION_CHANNEL_ID`.
+4. Paste it into `.env`.
+5. `pm2 reload ecosystem.config.js` to pick up the new env var.
+
+The notification is best-effort: a broken channel (e.g., bot is
+removed) logs an error but never breaks gameplay. Leave the env
+var blank to disable notifications entirely.
+
+
 
 ## Step 7 — Run the bot
 
