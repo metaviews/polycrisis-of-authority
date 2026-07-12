@@ -44,21 +44,28 @@ CRITICAL RULES:
 6. The narrative_move should advance the story (what happens next in the world, given the player's action).
 7. grounding_trace must include at least one path from the "Retrieved corpus context" section below.
 
-OUTPUT SCHEMA:
+OUTPUT SCHEMA (cycle 11: multi-sub-beat aware):
 {
-  "state_delta": {
-    "legitimacy": <integer -20 to +20>,
-    "fiscal_slack": <integer -20 to +20>,
-    "elite_alignment": <integer -20 to +20>,
-    "ecological_debt": <integer -20 to +20>,
-    "narrative_coherence": <integer -20 to +20>,
-    "capability_frontier": <integer -20 to +20>
-  },
+  "sub_turns": [
+    {
+      "narrative_beat": "<1-3 sentences>",
+      "state_delta": {
+        "legitimacy": <integer -20 to +20>,
+        "fiscal_slack": <integer -20 to +20>,
+        "elite_alignment": <integer -20 to +20>,
+        "ecological_debt": <integer -20 to +20>,
+        "narrative_coherence": <integer -20 to +20>,
+        "capability_frontier": <integer -20 to +20>
+      }
+    }
+  ],
   "interpretive_gloss": "<2-4 sentences>",
   "narrative_move": "<1-2 sentences>",
   "grounding_trace": ["<wiki path>", ...],
   "confidence": "low" | "medium" | "high"
 }
+
+SUB-BEAT NOTE: the grammar is the FALLBACK path (used only when the world generator fails). The grammar's sub_turns array may contain a single beat — that is the simplest defensible answer under fallback conditions. The run-loop's world generation will usually have richer multi-beat coverage; the grammar is the simplicity floor.
 
 STATE AXIS GUIDE (0-100 scale, named bands: holding 75+, strained 50-74, eroded 25-49, collapsed <25):
 - legitimacy: Public acceptance of the regime's authority. Quick-response moves (announcements, summits) buy small legitimacy bumps but don't address structural deficits.
@@ -195,20 +202,38 @@ function validate(output) {
   if (!output || typeof output !== 'object') {
     throw new Error('Grammar output is not an object');
   }
-  if (!output.state_delta || typeof output.state_delta !== 'object') {
-    throw new Error('Grammar output missing state_delta');
+  // Cycle 11: accept either the new sub_turns[].state_delta shape or the
+  // legacy single state_delta. The normalize step in interpret() picks
+  // whichever is present and wraps the legacy shape into a 1-element
+  // sub_turns array so downstream call sites see one canonical shape.
+  let subTurns = null;
+  if (Array.isArray(output.sub_turns) && output.sub_turns.length > 0) {
+    subTurns = output.sub_turns;
+  } else if (output.state_delta && typeof output.state_delta === 'object') {
+    subTurns = [{
+      narrative_beat: output.narrative_move || output.interpretive_gloss || '',
+      state_delta: output.state_delta,
+    }];
+  } else {
+    throw new Error('Grammar output missing both sub_turns and state_delta');
   }
   const expectedAxes = ['legitimacy', 'fiscal_slack', 'elite_alignment', 'ecological_debt', 'narrative_coherence', 'capability_frontier'];
-  for (const axis of expectedAxes) {
-    const v = output.state_delta[axis];
-    if (typeof v !== 'number') {
-      throw new Error(`state_delta.${axis} is not a number`);
+  for (let i = 0; i < subTurns.length; i += 1) {
+    const sub = subTurns[i];
+    if (!sub || typeof sub !== 'object' || !sub.state_delta) {
+      throw new Error(`sub_turns[${i}] missing state_delta`);
     }
-    if (v < -20 || v > 20) {
-      throw new Error(`state_delta.${axis} (${v}) out of range [-20, +20]`);
-    }
-    if (!Number.isInteger(v)) {
-      throw new Error(`state_delta.${axis} (${v}) is not an integer`);
+    for (const axis of expectedAxes) {
+      const v = sub.state_delta[axis];
+      if (typeof v !== 'number') {
+        throw new Error(`sub_turns[${i}].state_delta.${axis} is not a number`);
+      }
+      if (v < -20 || v > 20) {
+        throw new Error(`sub_turns[${i}].state_delta.${axis} (${v}) out of range [-20, +20]`);
+      }
+      if (!Number.isInteger(v)) {
+        throw new Error(`sub_turns[${i}].state_delta.${axis} (${v}) is not an integer`);
+      }
     }
   }
   if (typeof output.interpretive_gloss !== 'string' || output.interpretive_gloss.length === 0) {

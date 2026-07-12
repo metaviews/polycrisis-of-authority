@@ -3,16 +3,16 @@
 /**
  * world-generator.js
  *
- * Cycle 5c. The LLM-driven world generator that replaces the static crisis
- * deck for turns 2+. The world generator is the LLM call that produces:
- *   - state_delta: 6-axis integer deltas
- *   - narrative: 2-4 sentences; what happens in the world as a response
- *     to the player's prior move
- *   - situation: 1-2 sentences; what the player sees first next turn
- *   - pressure: 1-2 sentences; what is at stake
- *   - decision_point: 1 sentence; the question the regime must answer
- *   - grounding_trace: wiki paths the LLM drew on
- *   - confidence: low | medium | high
+ * Cycle 11: default per-turn pacing is *multi-sub-beat*. Each turn's world
+ * output is a `sub_turns` array of length `crisis.sub_beat_count`. Each
+ * sub_turn carries its own `state_delta`, `narrative_beat`, and (for the
+ * last sub_turn only) the surface-visible `situation`/`pressure`/
+ * `decision_point`. The legacy single-delta shape is still accepted by
+ * the run-loop's apply path; the world generator always returns a
+ * `sub_turns` array (length matching the deck). The interpretation
+ * grammar's mock-and-real paths still produce a single delta, which is
+ * wrapped in a 1-element sub_turns by the caller. Per
+ * docs/23-cycle-11-pacing-and-help.md.
  *
  * The output is a superset of what grammar.js produces; the grammar's
  * interpretive_gloss and narrative_move are folded into the narrative
@@ -100,24 +100,39 @@ REGISTER (READ THIS CAREFULLY — cycle 5d):
 - Accessible language. "Can do multi-step tasks on its own" beats "agentic capabilities". Translate jargon into plain English.
 - The prose is for a player who is curious and alert, slightly pressed for time, and wants to understand the situation without re-reading.
 
-OUTPUT SCHEMA:
+OUTPUT SCHEMA (cycle 11: multi-sub-beat):
 {
-  "state_delta": {
-    "legitimacy": <integer -20 to +20>,
-    "fiscal_slack": <integer -20 to +20>,
-    "elite_alignment": <integer -20 to +20>,
-    "ecological_debt": <integer -20 to +20>,
-    "narrative_coherence": <integer -20 to +20>,
-    "capability_frontier": <integer -20 to +20>
-  },
-  "headlines": ["<1 sentence each, past tense, committed events>", "<...>", "<...>"],
-  "narrative": "<2-4 sentences, accessible register. What happens in the world as a response to the player's prior move.>",
-  "situation": "<1-2 sentences, accessible register. What the player sees first in the next turn.>",
-  "pressure": "<1-2 sentences, accessible register. What is at stake.>",
-  "decision_point": "<1 sentence, accessible register. The question the regime must answer next.>",
+  "narrative": "<2-4 sentences, accessible register. Overall response to the player's move across the sub-turns.>",
+  "headlines": ["<committed events>", "..."],
+  "sub_turns": [
+    {
+      "narrative_beat": "<1-3 sentences. What happens in this sub-beat.>",
+      "state_delta": {
+        "legitimacy": <integer -20 to +20>,
+        "fiscal_slack": <integer -20 to +20>,
+        "elite_alignment": <integer -20 to +20>,
+        "ecological_debt": <integer -20 to +20>,
+        "narrative_coherence": <integer -20 to +20>,
+        "capability_frontier": <integer -20 to +20>
+      }
+    },
+    { "narrative_beat": "...", "state_delta": {...} },
+    ... (number of sub_turns MUST equal the requested sub_beat_count)
+  ],
+  "situation": "<1-2 sentences, accessible register. What the player sees first in the next turn. Must come from the LAST sub_turn's narrative beat.>",
+  "pressure": "<1-2 sentences, accessible register. What is at stake. Last sub_turn.>",
+  "decision_point": "<1 sentence, accessible register. The question the regime must answer next. Last sub_turn.>",
   "grounding_trace": ["<wiki path>", ...],
   "confidence": "low" | "medium" | "high"
 }
+
+SUB-TERN PACING (cycle 11):
+- The number of sub_turns in your output MUST equal the requested sub-beat count (default 1-3 depending on trigger_kind).
+- Each sub_beat is a discrete moment in the world's response to the player's move. Beats advance time.
+- Mid-turn beats (not the last) should produce narrative_beat only; their state_delta should be small and accumulating. The MEANINGFUL state change typically happens in the final beat.
+- Last sub_beat carries the substantive state_delta and seeds the next turn's situation/pressure/decision_point.
+
+BACKWARD COMPATIBILITY: if you cannot compose multiple sub-beats, return one beat. The run-loop will accept either. But prefer matching the requested count.
 
 HEADLINES (cycle 5e):
 - 2-3 short bullet points, past tense.
@@ -170,18 +185,29 @@ function buildUserPrompt({ priorCrisis, state, playerMove, turnHistory, retrieve
   // Cycle 5d: the prior crisis is now a seed + actor, not full prose.
   // The LLM uses the seed fragment as the prompt anchor and the actor as
   // the named entity for the situation.
+  //
+  // Cycle 11: the seed prompt also tells the LLM how many sub-beats to
+  // return, derived from the crisis deck's sub_beat_count + rationale.
+  // Fall back to a sensible default (1) if the calling context didn't
+  // supply a sub_beat_count (e.g. seed-parameterized first turns where the
+  // seed itself doesn't have a crisis entry).
+  const subBeatDirective = `
+SUB-BEAT COUNT (cycle 11): your output MUST contain a "sub_turns" array of exactly ${priorCrisis && typeof priorCrisis.sub_beat_count === 'number' ? priorCrisis.sub_beat_count : 1} beat${priorCrisis && priorCrisis.sub_beat_count === 1 ? '' : 's'}.
+${priorCrisis && priorCrisis.sub_beat_rationale ? `Rationale (from the deck): ${priorCrisis.sub_beat_rationale}` : ''}
+`;
+
   const seedSection = seedFragment
     ? `SEED (the theme for the next crisis — generate the situation/pressure/decision_point from this):
 
 Fragment: ${seedFragment}
 ${actor ? `Actor for this seed: ${actor}` : ''}
 
-The current state, retrieved corpus context, and recent history should fill in the specifics.`
+The current state, retrieved corpus context, and recent history should fill in the specifics.${subBeatDirective}`
     : `PRIOR CRISIS (the player just responded to this):
 
 Title: ${priorCrisis.title}
 Situation: ${priorCrisis.situation}
-Pressure: ${priorCrisis.pressure}`;
+Pressure: ${priorCrisis.pressure}${subBeatDirective}`;
 
   return `${seedSection}
 
@@ -209,19 +235,42 @@ function validate(output) {
   if (!output || typeof output !== 'object') {
     throw new Error('World generator output is not an object');
   }
-  if (!output.state_delta || typeof output.state_delta !== 'object') {
-    throw new Error('World generator output missing state_delta');
+  // Cycle 11: the schema now requires a `sub_turns` array of 1+ items, each
+  // with its own state_delta. For backward compatibility with prompts that
+  // may still return the legacy single-delta shape, we accept either:
+  //   - { sub_turns: [{state_delta, narrative_beat}], ... } (cycle 11)
+  //   - { state_delta: {...} } (legacy; auto-wrapped into a 1-element
+  //     sub_turns array by the caller of validate)
+  //
+  // The cycle-11 shape is preferred; if both shapes are present, sub_turns
+  // wins.
+  let subTurns = null;
+  if (Array.isArray(output.sub_turns) && output.sub_turns.length > 0) {
+    subTurns = output.sub_turns;
+  } else if (output.state_delta && typeof output.state_delta === 'object') {
+    // Legacy shape — wrap into a 1-element array. validate() returns
+    // normally; the caller's normalize step (see generateWorld below)
+    // materializes the wrapper shape.
+    subTurns = [{ state_delta: output.state_delta, narrative_beat: output.narrative || '' }];
+  } else {
+    throw new Error('World generator output missing both sub_turns and state_delta');
   }
-  for (const axis of VALID_AXES) {
-    const v = output.state_delta[axis];
-    if (typeof v !== 'number') {
-      throw new Error(`state_delta.${axis} is not a number`);
+  for (let i = 0; i < subTurns.length; i += 1) {
+    const sub = subTurns[i];
+    if (!sub || typeof sub !== 'object' || !sub.state_delta) {
+      throw new Error(`sub_turns[${i}] missing state_delta`);
     }
-    if (v < -20 || v > 20) {
-      throw new Error(`state_delta.${axis} (${v}) out of range [-20, +20]`);
-    }
-    if (!Number.isInteger(v)) {
-      throw new Error(`state_delta.${axis} (${v}) is not an integer`);
+    for (const axis of VALID_AXES) {
+      const v = sub.state_delta[axis];
+      if (typeof v !== 'number') {
+        throw new Error(`sub_turns[${i}].state_delta.${axis} is not a number`);
+      }
+      if (v < -20 || v > 20) {
+        throw new Error(`sub_turns[${i}].state_delta.${axis} (${v}) out of range [-20, +20]`);
+      }
+      if (!Number.isInteger(v)) {
+        throw new Error(`sub_turns[${i}].state_delta.${axis} (${v}) is not an integer`);
+      }
     }
   }
   // The narrative fields are the core of cycle 5c. Without them, the loop
@@ -315,8 +364,36 @@ async function generateWorld({ priorCrisis, state, playerMove, turnHistory = [],
     if (parsed) {
       try {
         validate(parsed);
+        // Cycle 11: normalize the LLM output into the canonical shape:
+        //   - sub_turns[] always present (1-element array for legacy responses)
+        //   - state_delta at the top level = sum of sub_turn deltas
+        //     (so legacy callers that read world.state_delta keep working)
+        let subTurns;
+        let topDelta;
+        if (Array.isArray(parsed.sub_turns) && parsed.sub_turns.length > 0) {
+          subTurns = parsed.sub_turns.map((b) => ({
+            narrative_beat: typeof b.narrative_beat === 'string' ? b.narrative_beat : (b.narrative || ''),
+            state_delta: b.state_delta,
+          }));
+          topDelta = subTurns.reduce((acc, b) => {
+            for (const axis of VALID_AXES) {
+              if (typeof b.state_delta[axis] === 'number') {
+                acc[axis] = (acc[axis] || 0) + b.state_delta[axis];
+              }
+            }
+            return acc;
+          }, {});
+        } else {
+          // Legacy single-delta shape.
+          subTurns = [{ narrative_beat: parsed.narrative || '', state_delta: parsed.state_delta }];
+          topDelta = parsed.state_delta;
+        }
         return {
-          state_delta: parsed.state_delta,
+          // Legacy single-delta view (sum of sub_turn deltas, for any
+          // call site that reads world.state_delta directly).
+          state_delta: topDelta,
+          // Cycle 11: the canonical multi-sub-beat view.
+          sub_turns: subTurns,
           headlines: parsed.headlines || [],
           narrative: parsed.narrative,
           situation: parsed.situation,

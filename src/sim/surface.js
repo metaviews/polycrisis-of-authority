@@ -257,6 +257,13 @@ function formatCrisisForDiscord(crisis, identity = null) {
     description: truncateForDiscord(descriptionLines.join('\n'), DISCORD_EMBED_DESCRIPTION_MAX),
     fields,
     color: crisis.fromSeed ? 0x8a7f5c : 0x9a6b3f, // muted archival palette
+    // Cycle 11: footer hints the player about help commands. The footer
+    // reads on every crisis embed, so the affordance is discoverable
+    // without a separate announcement. (Help itself works via the message
+    // body — type `?` to re-read context, `?? <question>` to ask.)
+    footer: {
+      text: 'Type your move to continue. `?` for context, `?? <question>` for Q&A (env-gated), `/end` to stop.',
+    },
   };
 
   return { embed };

@@ -301,6 +301,8 @@ async function runInteractive(options = {}) {
   console.log('  End your move with a blank line. Type `a` to consult an advisor first.');
   console.log('  To end the run at any point, type `r` (or `resign`) at the move prompt,');
   console.log('  or include `::resign` on its own line inside a multi-line move.');
+  console.log('  Type `?` at any time to re-read the current context (no LLM call, no turn advance).');
+  console.log('  Type `?? <question>` to ask a one-shot question (env-gated; requires POLYCRISIS_HELP_QA_ENABLED).');
   console.log('');
 
   const reader = createReader();

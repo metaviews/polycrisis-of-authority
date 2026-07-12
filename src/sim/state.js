@@ -51,6 +51,7 @@ function clamp(value) {
   return value;
 }
 
+// applyDelta — apply a single delta to a state. Clamps each axis to [0, 100].
 function applyDelta(state, delta) {
   const next = { ...state };
   for (const axis of AXIS_NAMES) {
@@ -59,6 +60,23 @@ function applyDelta(state, delta) {
     }
   }
   return next;
+}
+
+// Cycle 11: applyDeltas — compose an array of deltas left-to-right.
+// Each delta's effect builds on the previous step's state; clamping happens
+// after each step so a +20 followed by -5 still respects [0, 100] bounds.
+// Returns { state: <final state>, steps: [post-step states, length === deltas.length] }.
+function applyDeltas(state, deltaArray) {
+  if (!Array.isArray(deltaArray)) {
+    throw new Error(`applyDeltas: expected array of deltas, got ${typeof deltaArray}`);
+  }
+  let current = { ...state };
+  const steps = [];
+  for (const delta of deltaArray) {
+    current = applyDelta(current, delta);
+    steps.push(current);
+  }
+  return { state: current, steps };
 }
 
 function withBands(state) {
@@ -150,6 +168,7 @@ module.exports = {
   bandFor,
   clamp,
   applyDelta,
+  applyDeltas,
   withBands,
   checkCollapse,
   formatState,

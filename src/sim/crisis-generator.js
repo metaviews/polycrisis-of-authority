@@ -22,6 +22,19 @@ const { AXIS_NAMES } = require('./state');
 
 // Crisis deck — loaded from wiki/mechanics/crises/ via scripts/probe-e2e.js style
 // caching. The source of truth is the markdown files; this is the compiled form.
+//
+// Cycle 11: each entry carries `sub_beat_count` (how many sub-beats the world
+// generator should compose into a single turn) and `sub_beat_rationale` (a
+// short string the world generator's prompt uses to bind its narrative choices
+// to the deck's intent). Defaults by trigger_kind:
+//
+//   capability-driven   → 3   (a release is multi-step: announce → evaluate → political response)
+//   incident-driven     → 1   (an incident is point-in-time; over-narrating it falsifies)
+//   legitimacy-driven   → 2   (a polling shift surfaces, then commentary crystallizes)
+//   elite-driven        → 2   (a walkout lands, then sectoral reaction)
+//
+// Per docs/23-cycle-11-pacing-and-help.md. This is the type-driven default —
+// entries override below if they have a specific reason.
 const CRISIS_DECK = [
   {
     id: 'crisis-1',
@@ -33,6 +46,8 @@ const CRISIS_DECK = [
     failure_pattern: 'upstream-embedding',
     focal_axes: ["elite_alignment", "narrative_coherence", "capability_frontier"],
     trigger_kind: 'capability-driven',
+    sub_beat_count: 3,
+    sub_beat_rationale: "Capability release unfolds as: announcement → evaluation response → political / sectoral reaction. Each is a discrete beat.",
   },
   {
     id: 'crisis-2',
@@ -44,6 +59,8 @@ const CRISIS_DECK = [
     failure_pattern: 'upstream-embedding',
     focal_axes: ["legitimacy", "narrative_coherence", "elite_alignment"],
     trigger_kind: 'incident-driven',
+    sub_beat_count: 1,
+    sub_beat_rationale: "Single inciting incident; over-compressing the timeline would falsify the bias documentation.",
   },
   {
     id: 'crisis-3',
@@ -55,6 +72,8 @@ const CRISIS_DECK = [
     failure_pattern: 'compute-capability-escape',
     focal_axes: ["fiscal_slack", "capability_frontier", "elite_alignment"],
     trigger_kind: 'capability-driven',
+    sub_beat_count: 3,
+    sub_beat_rationale: "Fund announcement → international lab response → domestic political reaction. Three beats carry the geopolitical weight.",
   },
   {
     id: 'crisis-4',
@@ -66,6 +85,8 @@ const CRISIS_DECK = [
     failure_pattern: 'compute-capability-escape',
     focal_axes: ["capability_frontier", "narrative_coherence", "ecological_debt"],
     trigger_kind: 'capability-driven',
+    sub_beat_count: 3,
+    sub_beat_rationale: "Paper publication → analyst commentary crystallizes → downstream deployment pressure. Three beats map the diffusion.",
   },
   {
     id: 'crisis-5',
@@ -77,6 +98,8 @@ const CRISIS_DECK = [
     failure_pattern: 'legitimacy-erosion',
     focal_axes: ["legitimacy", "narrative_coherence", "elite_alignment"],
     trigger_kind: 'legitimacy-driven',
+    sub_beat_count: 2,
+    sub_beat_rationale: "Polling shift surfaces → commentary crystallizes. Two beats; the structural deficit remains.",
   },
   {
     id: 'crisis-6',
@@ -88,6 +111,8 @@ const CRISIS_DECK = [
     failure_pattern: 'legitimacy-erosion',
     focal_axes: ["elite_alignment", "narrative_coherence", "legitimacy"],
     trigger_kind: 'elite-driven',
+    sub_beat_count: 2,
+    sub_beat_rationale: "Walkout lands → sectoral reaction (other researchers, allied labs, civil society).",
   },
   {
     id: 'crisis-7',
@@ -99,6 +124,8 @@ const CRISIS_DECK = [
     failure_pattern: 'memetic-narrative-capture',
     focal_axes: ["narrative_coherence", "elite_alignment", "legitimacy"],
     trigger_kind: 'elite-driven',
+    sub_beat_count: 2,
+    sub_beat_rationale: "Acquisition completes → coverage drift becomes visible. Two beats; the structural capture unfolds over a longer horizon.",
   },
   {
     id: 'crisis-8',
@@ -110,6 +137,8 @@ const CRISIS_DECK = [
     failure_pattern: 'memetic-narrative-capture',
     focal_axes: ["narrative_coherence", "legitimacy", "elite_alignment"],
     trigger_kind: 'incident-driven',
+    sub_beat_count: 1,
+    sub_beat_rationale: "A single coordinated-influence event; the response is point-in-time attribution and platform enforcement.",
   },
 ];
 

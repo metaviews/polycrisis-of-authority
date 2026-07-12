@@ -53,7 +53,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const { INITIAL_STATE, applyDelta, checkCollapse, withBands } = require('./state');
+const { INITIAL_STATE, applyDelta, applyDeltas, checkCollapse, withBands } = require('./state');
 const { selectSeed } = require('../../scripts/seed-variants');
 const { pickCorpusQuote } = require('../../scripts/wiki-query');
 const { interpret } = require('./grammar');
@@ -63,6 +63,7 @@ const { consult, ADVISOR_VOICES } = require('./advisors');
 const { selectAtmospherics } = require('./atmospherics');
 const { generateArtifact } = require('./artifact-generator');
 const { renderArtifactHtml } = require('./artifact-render');
+const { runHelp, parseHelpPrefix } = require('./help');
 const { formatCrisisForTTY, formatCrisisForDiscord, formatEndOfRunEmbed, formatStatusEmbed } = require('./surface');
 
 // cycle 5d: dynamic turn count + stabilization
@@ -78,6 +79,19 @@ function generateRunId() {
   const stamp = now.toISOString().replace(/[-:T]/g, '').replace(/\..+/, '').slice(0, 14);
   const rand = Math.random().toString(36).slice(2, 8);
   return `${stamp}-${rand}`;
+}
+
+// Cycle 11: thin wrapper around help.runHelp() that fits the run-loop's
+// options-shape. Returns true if the help command was handled; false if
+// it was malformed or unrecognized (which means the loop should fall
+// through to normal move processing — defensive).
+async function handleHelpCommand(command, { surface, crisis, state, identity, turns }) {
+  try {
+    return await runHelp(command, { surface, crisis, state, identity, turns });
+  } catch (err) {
+    surface.print(`(? ? help layer crashed: ${err.message})`.trim());
+    return true;
+  }
 }
 
 // Convert a world generator output into the crisis shape the loop displays.
@@ -191,6 +205,16 @@ async function runLoop(options) {
   let outcome = 'no-collapse';
   let collapse = null;
   let priorWorld = null;
+  // Cycle 11: track the current crisis's sub_beat_count (default 1) so the
+  // world generator's prompt can be told how many sub-beats to emit, and
+  // so the legacy single-delta path can be wrapped into a sub_turns array
+  // matching the count. Updated each turn.
+  let currentSubBeatCount = 1;
+  let currentSubBeatRationale = 'Single sub-beat (legacy default).';
+  // Cycle 11: when a help command is handled, the loop's turn number
+  // should not advance. We track this with a one-shot decrement that is
+  // applied at the top of the next loop iteration.
+  let helpTurnDecrement = 0;
   let fallbackWarnings = 0;
   let consecutiveStableTurns = 0;
   // End-of-run report + effective turn count. Hoisted outside the try block
@@ -205,6 +229,13 @@ async function runLoop(options) {
   try {
     while (turn < maxTurns) {
       turn += 1;
+      // Cycle 11: if the prior iteration handled a help command, the
+      // turn counter over-incremented by 1. Roll back. This keeps help
+      // commands at zero in-game time (per the user-confirmed design).
+      if (helpTurnDecrement > 0) {
+        turn -= 1;
+        helpTurnDecrement = 0;
+      }
 
       // 1. Determine the current crisis.
       let crisis;
@@ -231,6 +262,24 @@ async function runLoop(options) {
         }
         usedSeedIds.push(seed.id);
         usedActors.push(seed.actor);
+        // Cycle 11: look up the matching CRISIS_DECK entry to inherit
+        // sub_beat_count and sub_beat_rationale. If the seed id doesn't
+        // match a deck entry (rare — most seeds are 1:1 with crisis-*),
+        // fall back to the default of 1 sub-beat.
+        let inheritedSubBeatCount = 1;
+        let inheritedSubBeatRationale = 'Single sub-beat (no crisis-deck match found for this seed id).';
+        try {
+          const { CRISIS_DECK } = require('./crisis-generator');
+          const deckEntry = CRISIS_DECK.find((c) => c.id === seed.id);
+          if (deckEntry && typeof deckEntry.sub_beat_count === 'number') {
+            inheritedSubBeatCount = deckEntry.sub_beat_count;
+            inheritedSubBeatRationale = deckEntry.sub_beat_rationale || inheritedSubBeatRationale;
+          }
+        } catch (lookupErr) {
+          // best-effort; don't break the loop on a lookup failure
+        }
+        currentSubBeatCount = inheritedSubBeatCount;
+        currentSubBeatRationale = inheritedSubBeatRationale;
         crisis = {
           id: seed.id,
           title: `${seed.actor} seed`,
@@ -245,11 +294,24 @@ async function runLoop(options) {
           fromSeed: true,
           seedFragment: seed.fragment,
           actor: seed.actor,
+          sub_beat_count: currentSubBeatCount,
+          sub_beat_rationale: currentSubBeatRationale,
         };
         seedFragment = seed.fragment;
         actor = seed.actor;
       } else {
         crisis = crisisFromWorld(priorWorld, `Turn ${turn}`);
+        // For turns 2+, the prior turn's world output dictates the new
+        // situation. Carry the prior turn's sub_beat_count forward so the
+        // pattern of pacing is consistent within a turn chain (e.g. a
+        // capability-driven thread keeps composing multi-beat turns until
+        // the deck switches it).
+        if (priorWorld && typeof priorWorld.sub_beat_count === 'number') {
+          currentSubBeatCount = priorWorld.sub_beat_count;
+          currentSubBeatRationale = priorWorld.sub_beat_rationale || currentSubBeatRationale;
+          crisis.sub_beat_count = currentSubBeatCount;
+          crisis.sub_beat_rationale = currentSubBeatRationale;
+        }
       }
 
       // Snapshot the pre-delta state + current crisis before renderTurn
@@ -276,10 +338,29 @@ async function runLoop(options) {
 
       // 3. Read the player's move.
       const moveResult = await readPlayerMove(surface, crisis, state, identity, ADVISOR_VOICES, consultAdvisorShort);
-      const { playerMove, advisorUsed, advisorFullResponse, resignedThisTurn, outcome: readOutcome } = moveResult;
+      const { playerMove, advisorUsed, advisorFullResponse, resignedThisTurn, outcome: readOutcome, helpCommand } = moveResult;
       if (resignedThisTurn) {
         outcome = readOutcome || 'player-quit';
         break;
+      }
+      // Cycle 11: help commands are read-only interrupts. The loop renders
+      // the answer context (passive `?` or active `?? <question>`) and
+      // re-displays the move prompt without advancing the turn. To keep
+      // the turn counter stable across help interactions, we capture the
+      // current turn number, `continue`, and decrement on the next loop
+      // head.
+      if (helpCommand) {
+        const handled = await handleHelpCommand(helpCommand, { surface, crisis, state, identity, turns });
+        if (handled) {
+          helpTurnDecrement = 1;
+          surface.print('');
+          surface.print('  (help shown above — your turn has not advanced.)');
+          surface.print('');
+          // Re-show the move prompt header (and the crisis) so the player
+          // can re-read before writing.
+          surface.print(renderTurn(crisis, identity));
+          continue;
+        }
       }
       if (!playerMove) {
         surface.print('  (empty response — using a brief acknowledgment.)');
@@ -335,8 +416,19 @@ async function runLoop(options) {
           }),
           { atmospherics: atmospheric, corpusQuote },
         );
+        // Cycle 11: wrap the grammar's single-delta output into a 1-element
+        // sub_turns array so all downstream code sees the canonical shape.
+        const grammarSubTurn = (Array.isArray(grammarOutput.sub_turns) && grammarOutput.sub_turns.length > 0)
+          ? grammarOutput.sub_turns
+          : [{
+              narrative_beat: grammarOutput.narrative_move || grammarOutput.interpretive_gloss || '',
+              state_delta: grammarOutput.state_delta || {},
+            }];
         world = {
-          state_delta: grammarOutput.state_delta,
+          state_delta: grammarOutput.state_delta || grammarSubTurn[0].state_delta,
+          sub_turns: grammarSubTurn,
+          sub_beat_count: grammarSubTurn.length,
+          sub_beat_rationale: currentSubBeatRationale,
           headlines: [],
           narrative: grammarOutput.interpretive_gloss,
           situation: crisis.situation,
@@ -351,8 +443,24 @@ async function runLoop(options) {
         };
       }
 
-      // 5. Apply delta.
-      const stateAfter = applyDelta(state, world.state_delta);
+      // 5. Apply delta(s). Cycle 11: world.sub_turns[] is the canonical
+      // multi-sub-beat view. We compose the array via state.applyDeltas
+      // (which records each post-step state for the artifact and run log).
+      // Collapse and stabilization checks happen *after* all sub-beats have
+      // composed — the meaning is "did the regime hold across this turn?"
+      let stateAfter;
+      let subTurnSteps = [];
+      if (Array.isArray(world.sub_turns) && world.sub_turns.length > 0) {
+        const composed = applyDeltas(state, world.sub_turns.map((s) => s.state_delta || {}));
+        stateAfter = composed.state;
+        subTurnSteps = composed.steps;
+      } else {
+        // Defense-in-depth: if for any reason the world has no sub_turns
+        // array (older mock-llm output, etc.), fall back to the single
+        // state_delta at the top level.
+        stateAfter = applyDelta(state, world.state_delta || {});
+        subTurnSteps = [stateAfter];
+      }
 
       // 6. Check collapse + stabilization.
       collapse = checkCollapse(stateAfter, turn);
@@ -375,6 +483,7 @@ async function runLoop(options) {
       // 7. Record turn.
       const grammarOutputForRecord = {
         state_delta: world.state_delta,
+        sub_turns: world.sub_turns || [{ narrative_beat: world.narrative, state_delta: world.state_delta }],
         interpretive_gloss: world.interpretive_gloss,
         narrative_move: world.narrative_move,
         grounding_trace: world.grounding_trace,
@@ -386,12 +495,14 @@ async function runLoop(options) {
         playerMove: playerMove || '[silence]',
         grammarOutput: grammarOutputForRecord,
         world,
+        subTurnSteps,
         worldFallback: usedFallback,
         stateBefore: state,
         stateAfter,
         collapse,
         advisorUsed,
         advisorFullResponse,
+        helpUsedThisTurn: 0,
       });
 
       state = stateAfter;
@@ -534,18 +645,31 @@ async function readPlayerMove(surface, crisis, state, identity, advisorVoices, c
   // (step 4+).
   if (surface.singleMessage) {
     const moveText = await surface.readMove({ header: 'Your move:' });
+    const helpCommand = parseHelpPrefix(moveText);
+    if (helpCommand) {
+      return { playerMove: null, advisorUsed: null, advisorFullResponse: null, resignedThisTurn: false, helpCommand };
+    }
     if ((moveText || '').trim().toLowerCase() === '::resign') {
       return { playerMove: null, advisorUsed: null, advisorFullResponse: null, resignedThisTurn: true, outcome: 'player-quit' };
     }
     return { playerMove: moveText, advisorUsed: null, advisorFullResponse: null, resignedThisTurn: false };
   }
 
-  // First-line prompt: move OR shortcut (`a` for advisor, `r` to resign).
-  const firstLineRaw = await surface.readMove({ header: 'Your move (or `a` for an advisor, `r` to resign):' });
+  // First-line prompt: move OR shortcut (`a` for advisor, `r` to resign, `?` for help).
+  const firstLineRaw = await surface.readMove({ header: 'Your move (or `a` for an advisor, `r` to resign, `?` for help):' });
   // TTY reader uses prompt(); some surfaces return a single line, others
   // return the full buffer. Standardize by splitting on newlines.
   const lines = firstLineRaw.split('\n');
   const firstLine = lines[0] || '';
+
+  // Cycle 11: help-mode shortcut. `?` alone (or `?? <question>` on the
+  // first line) is parsed before the advisor / resign shortcuts. The
+  // loop caller sees helpCommand set and dispatches to help.runHelp(); it
+  // then re-prompts without advancing the turn.
+  const helpCommand = parseHelpPrefix(firstLineRaw);
+  if (helpCommand && helpCommand.kind) {
+    return { playerMove: null, advisorUsed: null, advisorFullResponse: null, resignedThisTurn: false, helpCommand };
+  }
 
   // Resign shortcut.
   if (['r', 'resign'].includes(firstLine.trim().toLowerCase())) {
