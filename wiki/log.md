@@ -607,3 +607,15 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Verified:** 50 of 50 ad-hoc checks pass at `/tmp/hermes-verify-14-web-spec.sh` (spec-completeness checks across 10 categories: existence, frontmatter, decisions, table render, topics, direction boards, gate files, build plan, engine commitment, deferred items).
 - **Filed:** `wiki/prototypes/2026-07-26-cycle-web-spec.md`.
 - **Next:** user reviews the spec. corrections become edits to `docs/24-web-architecture.md`. cycle 12a (three real HTML direction boards) starts when user signals "start the web build" or "do the mockups."
+
+## 2026-07-26 — Web direction-board mockups (cycle 12a)
+
+- **Action:** Filed three real HTML direction-board mockups at `/tmp/hermes-mockups-12a/` (direction-a.html, direction-b.html, direction-c.html) plus a side-by-side compare page (compare.html). Same seed crisis (turn 3 of a frontier-lab release run) and same corpus quote render in all three. Only the layout architecture differs.
+- **Visual language locked:** serif (Georgia) for prose, mono (ui-monospace) for chrome, no gradients, no box-shadow, no emoji, prose max-width ~70ch. Same austere mono/serif language as `docs/09-artifact-template.md`.
+- **Direction A** — single-page card (recommended v1 starting point). One column, top-to-bottom: crisis header, headlines, situation, pressure, decision, advisor panel, corpus quote.
+- **Direction B** — chat-thread scroll. Stream of turn cards stacked vertically, prior turns in muted form, decision input pinned to the bottom. Prior turns include their own corpus quotes (more aggressive reading of decision 2).
+- **Direction C** — split-pane (rejected by decision 4). Left sidebar with the system (six axes, stability trajectory, advisors), right pane with crisis/decision. The system is the page's first read; the taoist frame pushes back.
+- **Small design notes surfaced:** corpus quote per turn vs. one quote per page (A reads as one, B reads as per-turn); prior turns on the per-turn page (A: no, B: yes); advisor panel position (A and C: list of buttons, B: row in fixed dock). The spec didn't explicitly resolve any of these; the user picks.
+- **Verification:** 59 of 59 ad-hoc checks pass at `/tmp/hermes-verify-12a-mockups.sh`. Categories: file existence, file sizes, identical crisis content, spec load-bearing elements (corpus/advisor/status/submit), aesthetic compliance, structural distinctness, compare page iframes, headless chromium render check. Visual confirmation via `chromium --screenshot` PNGs.
+- **Filed:** `wiki/prototypes/2026-07-26-cycle-12a-mockups.md`.
+- **Next:** user reviews the mockups. picks A, B, or a variant. `direction-approved.md` is filed at the gate path. cycle 12b starts (cold-start + artifact-serving route — v0 surface, ships before any v1 run-start code).
