@@ -587,3 +587,23 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Verified:** the spec itself is structural prose, not a behavior claim, so no per-cycle verification script yet. Each implementation cycle will have its own.
 - **Filed:** `wiki/prototypes/2026-07-04-cycle-deploy-spec.md`.
 - **Next:** cycle 7-install when user signals "start the deploy," grounded before any remote command.
+
+## 2026-07-26 — Web architecture spec filed
+
+- **Action:** Filed `docs/24-web-architecture.md` (287 lines, single-doc spec). Renamed from `docs/14-web-architecture.md` after collision with `docs/14-discord-bot-setup.md`. Grounded in the post-discord-build planning conversation (2026-07-26) that included a study of huashu-design's principles.
+- **5 confirmed decisions** (from conversation):
+  1. auth model: bearer-token-in-cookie, no password, resumable across devices from day 1
+  2. corpus quote timing: permanent footer under crisis pane, visible every turn after turn 1
+  3. post-game report: styled HTML at stable URL, one-click share (existing artifact-render.js is the report)
+  4. run state trajectory: hidden during play; /status is one click away, not on the main surface
+  5. advisor surface: five cards in a side panel, click-to-consult
+- **3 player types** the spec is designed for: discoverer (finds a run via shared link), player (creates + plays), returner (shares a finished run). v1 surface is for the player; v0 artifact-serving route serves the discoverer and returner.
+- **Aesthetic** anchored in `docs/09-artifact-template.md`: same austere mono/serif/no-gradient language as the artifact. The web version is the same visual language in interactive form.
+- **Three direction boards described (not built)**: A single-page card (recommended v1 starting point); B chat-thread scroll; C split-pane (rejected by decision 4).
+- **Engine commitment:** no changes to `src/sim/`. The surface-adapter pattern (src/bot/surface.js for discord, src/web/surface.js for the web) is the architecture that makes the engine-unchanged claim implementable.
+- **Gate file protocol:** `docs/24-web-architecture.md` (filed), `.hermes/projects/web/direction-approved.md` (before cycle 1's build code), `.hermes/projects/web/architecture-frozen.md` (before cycle 2). direction-approved is a hard gate.
+- **Build plan (4 cycles):** `cycle 12a` (three real HTML direction boards) → `cycle 12b` (v0 cold-start + artifact-serving route) → `cycle 12c` (v1 bearer-token auth + run-start + per-turn page) → `cycle 12d` (corpus footer + /status + post-game report integration).
+- **Deferred items** (resolved in their own cycles): HTMX vs vanilla JS, deployment target, one process or two, exact cold-start frame paragraph text, exact report format.
+- **Verified:** 50 of 50 ad-hoc checks pass at `/tmp/hermes-verify-14-web-spec.sh` (spec-completeness checks across 10 categories: existence, frontmatter, decisions, table render, topics, direction boards, gate files, build plan, engine commitment, deferred items).
+- **Filed:** `wiki/prototypes/2026-07-26-cycle-web-spec.md`.
+- **Next:** user reviews the spec. corrections become edits to `docs/24-web-architecture.md`. cycle 12a (three real HTML direction boards) starts when user signals "start the web build" or "do the mockups."

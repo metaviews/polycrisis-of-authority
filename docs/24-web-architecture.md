@@ -7,6 +7,7 @@ version: "0.1.0"
 last_updated: "2026-07-26"
 grounded_in:
   - "docs/13-discord-bot-architecture.md"
+  - "docs/14-discord-bot-setup.md"
   - "docs/12-handoff-protocol.md"
   - "docs/02-design-principles.md"
   - "docs/09-artifact-template.md"
@@ -251,7 +252,7 @@ Three files govern whether and how the build can start. None of these are chat m
 
 | Gate file | Purpose | Required at |
 |-----------|---------|-------------|
-| `docs/14-web-architecture.md` | this spec | already filed (cycle 11-12 planning) |
+| `docs/24-web-architecture.md` | this spec | already filed (cycle 12 planning) |
 | `.hermes/projects/web/direction-approved.md` | the user's choice of A, B, or C, with reasoning | before the build's cycle 1 |
 | `.hermes/projects/web/architecture-frozen.md` | the technical architecture section, frozen with any user corrections | before the build's cycle 2 |
 
@@ -284,4 +285,4 @@ This spec commits to **no changes to the simulation engine** (`src/sim/`). The w
 
 This spec is opinionated. It commits to the austere aesthetic, the taoist frame, the single-process deployment, the surface-adapter pattern, the no-JS-framework choice, and the five numbered decisions above. The cycle 1 of the build will *test* these choices with real mockups, and the user picks. If the user picks differently, the spec pivots — but the spec, as filed, is the starting position.
 
-When the user says "start the web build," the next step is: open `docs/14-web-architecture.md` and `.hermes/projects/web/`, produce the three direction-board HTML mockups (cycle 12a), and wait for `direction-approved.md` to be filed before any server code is written.
+When the user says "start the web build," the next step is: open `docs/24-web-architecture.md` and `.hermes/projects/web/`, produce the three direction-board HTML mockups (cycle 12a), and wait for `direction-approved.md` to be filed before any server code is written.
