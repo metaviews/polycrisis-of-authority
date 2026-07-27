@@ -1,0 +1,63 @@
+{
+  "run_id": "20260629064319-h80unb",
+  "started_at": "2026-06-29T06:43:19.000Z",
+  "ended_at": "2026-06-29T07:14:52.000Z",
+  "model": "minimax/minimax-m3",
+  "outcome": "no-collapse",
+  "turns_completed": 3,
+  "summary": "Three turns, the regime held. The 60-day review was extended to 90 days after the lab cited evaluation capacity. The second-lab coordination problem was deferred to a parallel review window rather than a coordinated one.",
+  "turns": [
+    {
+      "turn_number": 1,
+      "crisis_kind": "frontier-lab release",
+      "heading": "The first capability release",
+      "situation": "Anthropic released a new model today — Claude Mythos. It is the first model that can reliably do multi-step economic tasks on its own.",
+      "pressure": "The safety team has 14 days to evaluate it, and they can't. The public will read the response as either overreaction or capitulation, depending on which press cycle catches it first.",
+      "decision_question": "How does the regime respond to a capability release that outpaces its evaluation capacity?",
+      "headlines": [],
+      "player_move": null,
+      "advisors": []
+    },
+    {
+      "turn_number": 2,
+      "crisis_kind": "frontier-lab release window",
+      "heading": "The review window, extended",
+      "situation": "The 60-day review was extended to 90 days after the lab cited evaluation capacity. Civil-society observers were granted read-only access to a redacted subset of the test suite.",
+      "pressure": "The 30-day extension is being read as a concession. A second lab is rumored to be planning a similar release.",
+      "decision_question": "Do you extend further, or hold the line?",
+      "headlines": [
+        "Anthropic agreed to a 90-day review window after public pressure."
+      ],
+      "player_move": "We will convene a 60-day review with civil society observers.",
+      "advisors": []
+    },
+    {
+      "turn_number": 3,
+      "crisis_kind": "frontier-lab release window",
+      "heading": "A coordination problem, twice over",
+      "situation": "A second frontier lab is rumored to be planning a capability release within the quarter. The first lab's review window is now public, and the safety team has flagged that their evaluation criteria are not portable. The coordination problem has shifted from *whether* to review to *how* to align two labs' review windows without leaking proprietary capability details to either side.",
+      "pressure": "A second lab going public would expose the first lab's review window as a unilateral concession. Either the regime holds all labs to the same window — which requires coordination the labs have refused — or the first lab's commitment is exposed as theater. The press has 36 hours before the story breaks.",
+      "decision_question": "How do you respond to a coordination problem that is not yet public, knowing that any visible action will be read as a policy preference for one lab over the other?",
+      "headlines": [
+        "Anthropic agreed to a 90-day review window after public pressure.",
+        "The European AI Office published a parallel evaluation timeline, citing \"regulatory contagion.\""
+      ],
+      "player_move": "We will not coordinate a second review. The first lab's window stands. We will publish a non-binding recommendation that other labs adopt parallel timelines at their own pace.",
+      "advisors": []
+    }
+  ],
+  "corpus_quotes": [
+    null,
+    {
+      "text": "A 60-day review is a *number*; a 90-day review is a *commitment*; the difference is the read the press will give it.",
+      "href": "/wiki/concepts/regulatory-capture",
+      "title": "Regulatory Capture"
+    },
+    {
+      "text": "The visible signal of a 90-day review window is read as a *commitment*; the underlying capacity to evaluate on that timeline is not visible at all. The two readings can diverge for years before the underlying capacity becomes legible.",
+      "href": "/wiki/concepts/capabilities-eval",
+      "title": "Capabilities Evaluation"
+    }
+  ],
+  "end_prose": "<p>The regime held. The 90-day review window was preserved, and the second lab's release did not become a coordination problem — at least, not visibly. The press cycle ended with a non-binding recommendation, which is the kind of artifact that ages well: it commits the regime to nothing while giving the labs something to point at.</p><p style=\"margin-top: 1rem;\">The interesting move was turn 3. By declining to coordinate a second review, the regime kept the first lab's commitment from becoming a precedent. The cost was that the second lab's release would happen on its own timeline, unobserved, and the safety team would not know whether the parallel review happened at all. That cost is the kind of thing that becomes visible only later, when the second lab's model is in production and no one is sure whether it was evaluated.</p><p style=\"margin-top: 1rem;\">The run ended. The regime continues. The visible signals are stable. The hidden signals are not.</p>"
+}

@@ -632,3 +632,19 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
   - advisor panel position: B's dock-strip is functionally the spec's "side panel" (the dock is at the bottom of the viewport, which on a wide screen is the right side).
 - **Follow-up for narrow viewports (12c+ polish, not 12b scope):** a "minimize" affordance on the decision dock, or a scroll-up-to-focus behavior on mobile. The 140px dock takes most of a phone in landscape.
 - **Next gate:** `architecture-frozen.md` before cycle 12c code lands. Cycle 12b starts: cold-start page + artifact-serving route, v0 surface, ships before any v1 run-start code. File layout: `src/web/` created with the surface adapter skeleton (`src/web/surface.js` modeled on `src/bot/surface.js`). No engine code touched.
+
+## 2026-07-27 — Web v0 surface (cycle 12b)
+
+- **Action:** Filed the v0 read-only HTTP surface. 4 routes, 2 seed runs, no auth, no write paths, no LLM call, no database. `src/web/server.js` (http.createServer, 4 routes, no deps), `src/web/surface.js` (modeled on `src/bot/surface.js`), 2 seed runs in `data/seed-runs/`. Plus `src/web/README.md` and the cycle prototype doc.
+- **Routes:** `GET /` (cold-start), `GET /runs` (JSON list), `GET /runs/:id` (B chat-thread layout), `GET /runs/:id/report` (alias for ended runs). `POST` returns 405. Unknown paths return 404. No caching.
+- **Decisions made during 12b:**
+  - **node's built-in `http`, not express.** v0 has 4 routes with no middleware; `http.createServer` is enough. No `npm install` was needed. Matches the project's "no framework churn" principle. Express is a candidate for 12c+ if async middleware becomes useful.
+  - **read-only decision dock is rendered for active runs.** Placeholder for 12c, when the v1 surface adds run-start and the LLM-driven turn pipeline.
+  - **report alias is byte-identical to the run page for ended runs.** One render path, one URL. Decision 3 (a) honored: the report is the run URL at state='ended'.
+  - **seed runs are committed, real runs are read at request time.** Matches the discord bot's pattern of committed test fixtures alongside real runtime data.
+- **Seed runs:** 2 hand-crafted runs that match the shape the simulation *would* produce. `20260629064319-h80unb` (3 turns, no-collapse, frontier-lab release) and `20260628223813-8jtf0r` (2 turns, collapse, memetic warfare). The real `runs/` dir has only player-quit records (turns_completed: 0); the seeds give the v0 surface interesting data to render.
+- **Engine commitment holds:** `src/web/` does not import from `src/sim/`. The surface-adapter pattern is the architecture that makes this implementable — same shape as `src/bot/surface.js`, takes JSON, emits HTML.
+- **Cold-start shape:** option (b) from the cycle 12a question — frame paragraph + finished-runs list + v0 note. No fake "start a run" button. Honest about v0 being read-only. The run-start button appears in 12c.
+- **Verification:** 24 of 24 ad-hoc checks pass at `/tmp/hermes-verify-12b-v0.sh`. Categories: file existence, no engine coupling, surface adapter exports, in-process render of a 3-turn run, in-process render of cold-start, in-process render of the collapse run, seed run shape validation, live HTTP server (4 routes + 404 + 405), headless chromium visual render check.
+- **Filed:** `wiki/prototypes/2026-07-27-cycle-12b-v0.md`.
+- **Next:** user reviews the v0 surface (`cd polycrisis-of-authority && node src/web/server.js`, then `open http://127.0.0.1:3000/`). After review, cycle 12c starts: bearer-token auth + run-start + per-turn page. The v1 surface. Engine integration is the load-bearing test of the engine commitment in 12c.

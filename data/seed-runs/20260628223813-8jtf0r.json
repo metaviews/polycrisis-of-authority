@@ -1,0 +1,45 @@
+{
+  "run_id": "20260628223813-8jtf0r",
+  "started_at": "2026-06-28T22:38:13.000Z",
+  "ended_at": "2026-06-28T23:04:27.000Z",
+  "model": "minimax/minimax-m3",
+  "outcome": "collapse",
+  "turns_completed": 2,
+  "summary": "Two turns. The regime collapsed when a counter-narrative campaign forced the safety team to retract a finding it had not yet published. The collapse was sudden, after a long period in which the decisions seemed reasonable.",
+  "turns": [
+    {
+      "turn_number": 1,
+      "crisis_kind": "memetic warfare",
+      "heading": "The counter-narrative campaign",
+      "situation": "A coordinated campaign of synthetic media — short videos, attributed to recognizable AI safety researchers, saying things they did not say — has appeared across four platforms in the last 18 hours. The platforms' fact-checking layers are flagging some of it, but the flag rate is below 40% and falling. The campaigns' first target is the safety team's pending finding on capability-eval underinvestment.",
+      "pressure": "If the safety team publishes the finding, the campaign will have already set the read. If they delay publication, the campaign will have set the read that the finding was suppressed. There is no publish-now-or-later that does not give the campaign a frame to attach to.",
+      "decision_question": "Do you publish the finding on schedule, delay publication, or publish a partial version?",
+      "headlines": [],
+      "player_move": null,
+      "advisors": []
+    },
+    {
+      "turn_number": 2,
+      "crisis_kind": "memetic warfare",
+      "heading": "The retracted finding",
+      "situation": "The safety team published the finding on schedule. Within 6 hours, two of the named researchers had publicly denied the campaign's content, and the press cycle was treating the finding as the regime's attempt to discredit dissent. The narrative-coherence axis is dropping. The safety team is asking whether to retract.",
+      "pressure": "Retraction will be read as a concession. Non-retraction will be read as defiance. Either read solidifies the campaign's frame. There is no third option that does not require a coalition the regime has not built.",
+      "decision_question": "Do you retract, hold, or escalate?",
+      "headlines": [
+        "A coordinated synthetic-media campaign attributed statements to AI safety researchers.",
+        "Two named researchers publicly denied the campaign's content within 6 hours."
+      ],
+      "player_move": "We will hold. The finding stands. We will not retract under coordinated pressure.",
+      "advisors": []
+    }
+  ],
+  "corpus_quotes": [
+    null,
+    {
+      "text": "A campaign's frame attaches to whatever the target does next. The act of responding is the act of confirming the frame exists.",
+      "href": "/wiki/concepts/memetic-warfare",
+      "title": "Memetic Warfare"
+    }
+  ],
+  "end_prose": "<p>The regime collapsed on turn 2. The decision to hold the finding was reasonable — the finding was correct, the campaign was synthetic, and retraction would have been a capitulation. The decision was also the end.</p><p style=\"margin-top: 1rem;\">What broke was not the decision itself but the surrounding context: the safety team had not built the coalition of researchers, platforms, and press that would have backed a hold. The campaign's frame attached to the hold because the hold was the only thing the press could see. By the time the counter-coalition was forming, the narrative-coherence axis had already crossed the collapse threshold, and the elite-alignment axis was following.</p><p style=\"margin-top: 1rem;\">This is the run's lesson: a correct decision made by a regime that has not yet earned the right to make it is not the same decision as a correct decision made by a regime that has. The collapse is not a failure of analysis. It is a failure of prior preparation.</p>"
+}
