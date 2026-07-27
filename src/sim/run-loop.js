@@ -164,6 +164,250 @@ async function consultAdvisorShort(voice, crisis, state, identity = null) {
 //             passes nothing (no status command to support).
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// stepTurn — the per-turn simulation primitive. Cycle 12c.
+//
+// Before cycle 12c, the simulation logic was inside `runLoop`'s while-loop
+// body, which ran the entire session in a single call. The web surface
+// (cycle 12b's v0 read-only, cycle 12c's v1 interactive) needed a per-turn
+// API: each HTTP request is a separate process invocation, so the state
+// must be loaded, advanced by one turn, and persisted between requests.
+//
+// `stepTurn` is extracted from `runLoop` with no logic changes. It runs
+// one turn: takes the current state, the crisis to display, and the player's
+// move; calls the LLM (or its fallback); applies the delta; checks for
+// collapse; returns the new state and the world record for the run log.
+//
+// The caller (runLoop, or the v1 web server) is responsible for:
+//   - selecting the crisis (turn 1: from the seed/deck; turn 2+: from
+//     the prior turn's world output)
+//   - reading the player's move (via a surface or an HTTP form)
+//   - persisting state between calls
+//   - the end-of-run narration when collapse or stabilization fires
+//
+// This is the surface-adapter pattern applied to per-turn state: the
+// engine is the simulation logic; the surface is the interaction model.
+// The discord bot and terminal version still call `runLoop` (their
+// interaction model is in-process). The v1 web server calls `stepTurn`
+// per HTTP request.
+// ---------------------------------------------------------------------------
+
+async function stepTurn({
+  state,                       // current state (pre-delta)
+  crisis,                      // the current crisis to display
+  playerMove,                  // the player's move for this turn
+  identity,                    // { player, regime } — included in the LLM prompt
+  turnNumber,                  // 1..maxTurns, for stable turn numbering
+  priorTurns = [],             // last 3-5 turns, used for LLM context
+  atmospherics = null,         // pre-selected atmospherics for the wait indicator
+  corpusQuote = null,          // pre-selected corpus quote for the wait indicator
+  callLLM,                     // async (crisis, state, playerMove, ...) => world
+  currentSubBeatCount = 1,     // inherited from prior turn (or default 1)
+  currentSubBeatRationale = 'Single sub-beat (per-turn default).',
+  // optional: the LLM fallback caller. If omitted, falls back to interpret()
+  // directly, which produces a non-LLM-driven world. The web v1 surface
+  // provides its own fallback (interpret) explicitly.
+  callFallback = null,
+} = {}) {
+  if (!crisis) throw new Error('stepTurn: crisis is required');
+  if (!callLLM || typeof callLLM !== 'function') {
+    throw new Error('stepTurn: callLLM async function is required');
+  }
+  if (!state) throw new Error('stepTurn: state is required');
+
+  const turnHistory = priorTurns.slice(-3).map((t) => ({
+    crisis: t.crisis,
+    playerMove: t.playerMove,
+    worldNarrative: t.world?.narrative || t.grammarOutput?.interpretive_gloss || '(no narrative)',
+  }));
+
+  // 1. Call the LLM (or its fallback).
+  let world;
+  let usedFallback = false;
+  try {
+    world = await callLLM({
+      priorCrisis: crisis,
+      state: { ...state },
+      playerMove: playerMove || '[silence]',
+      turnHistory,
+      identity,
+    });
+  } catch (worldErr) {
+    usedFallback = true;
+    if (!callFallback) {
+      // No fallback provided — re-throw. The web v1 surface provides its
+      // own fallback (interpret) explicitly so it can log the warning
+      // and choose how to surface it.
+      throw worldErr;
+    }
+    const grammarOutput = await callFallback({
+      crisis,
+      state: { ...state },
+      playerMove: playerMove || '[silence]',
+      turnHistory,
+      identity,
+    });
+    // Wrap the grammar's single-delta output into a 1-element sub_turns
+    // array so all downstream code sees the canonical shape.
+    const grammarSubTurn = (Array.isArray(grammarOutput.sub_turns) && grammarOutput.sub_turns.length > 0)
+      ? grammarOutput.sub_turns
+      : [{
+          narrative_beat: grammarOutput.narrative_move || grammarOutput.interpretive_gloss || '',
+          state_delta: grammarOutput.state_delta || {},
+        }];
+    world = {
+      state_delta: grammarOutput.state_delta || grammarSubTurn[0].state_delta,
+      sub_turns: grammarSubTurn,
+      sub_beat_count: grammarSubTurn.length,
+      sub_beat_rationale: currentSubBeatRationale,
+      headlines: [],
+      narrative: grammarOutput.interpretive_gloss,
+      situation: crisis.situation,
+      pressure: crisis.pressure,
+      decision_point: crisis.decision_point,
+      grounding_trace: grammarOutput.grounding_trace,
+      confidence: grammarOutput.confidence,
+      interpretive_gloss: grammarOutput.interpretive_gloss,
+      narrative_move: grammarOutput.narrative_move,
+      retrieved_pages: [],
+      fallback: true,
+    };
+  }
+
+  // 2. Apply delta(s). world.sub_turns[] is the canonical multi-sub-beat
+  // view. We compose the array via applyDeltas, which records each
+  // post-step state. Collapse and stabilization checks happen *after* all
+  // sub-beats have composed.
+  let stateAfter;
+  let subTurnSteps = [];
+  if (Array.isArray(world.sub_turns) && world.sub_turns.length > 0) {
+    const composed = applyDeltas(state, world.sub_turns.map((s) => s.state_delta || {}));
+    stateAfter = composed.state;
+    subTurnSteps = composed.steps;
+  } else {
+    // Defense-in-depth: legacy single-delta shape.
+    stateAfter = applyDelta(state, world.state_delta || {});
+    subTurnSteps = [stateAfter];
+  }
+
+  // 3. Check collapse.
+  const collapse = checkCollapse(stateAfter, turnNumber);
+
+  // 4. Build the grammar record (for the run log / artifact).
+  const grammarOutput = {
+    state_delta: world.state_delta,
+    sub_turns: world.sub_turns || [{ narrative_beat: world.narrative, state_delta: world.state_delta }],
+    interpretive_gloss: world.interpretive_gloss,
+    narrative_move: world.narrative_move,
+    grounding_trace: world.grounding_trace,
+    confidence: world.confidence,
+  };
+
+  return {
+    stateAfter,
+    world,
+    collapse,
+    subTurnSteps,
+    grammarOutput,
+    worldFallback: usedFallback,
+    currentSubBeatCount: world.sub_beat_count || currentSubBeatCount,
+    currentSubBeatRationale: world.sub_beat_rationale || currentSubBeatRationale,
+  };
+}
+
+// pickCrisis — the crisis-selection logic, extracted from runLoop. Cycle 12c.
+//
+// Returns the crisis to display this turn. Turn 1 uses the seed/deck (a
+// pre-selected or random seed). Turn 2+ uses the prior turn's world
+// output (crisisFromWorld). The caller passes the inherited sub_beat_count
+// and rationale from the prior turn (or defaults for turn 1).
+//
+// The seed can be supplied as a pre-built seed object (the discord bot's
+// `buildPolycrisisStartReply` does this so turn 1 matches the preview),
+// as a seed id (the legacy TTY path), or omitted (random selection).
+// ---------------------------------------------------------------------------
+
+function pickCrisis({
+  turnNumber,
+  state,
+  priorWorld = null,
+  seed: seedArg = null,
+  seedId: seedIdArg = null,
+  usedSeedIds = [],
+  usedActors = [],
+  currentSubBeatCount = 1,
+  currentSubBeatRationale = 'Single sub-beat (legacy default).',
+} = {}) {
+  if (turnNumber === 1) {
+    let seed;
+    if (seedArg) {
+      seed = seedArg;
+    } else if (seedIdArg) {
+      const seeds = require('../../scripts/seed-variants').SEED_VARIANTS;
+      seed = seeds.find((s) => s.id === seedIdArg);
+      if (!seed) {
+        seed = selectSeed({ state, usedIds: usedSeedIds, usedActors });
+      }
+    } else {
+      seed = selectSeed({ state, usedIds: usedSeedIds, usedActors });
+    }
+    let inheritedSubBeatCount = 1;
+    let inheritedSubBeatRationale = 'Single sub-beat (no crisis-deck match found for this seed id).';
+    try {
+      const { CRISIS_DECK } = require('./crisis-generator');
+      const deckEntry = CRISIS_DECK.find((c) => c.id === seed.id);
+      if (deckEntry && typeof deckEntry.sub_beat_count === 'number') {
+        inheritedSubBeatCount = deckEntry.sub_beat_count;
+        inheritedSubBeatRationale = deckEntry.sub_beat_rationale || inheritedSubBeatRationale;
+      }
+    } catch (lookupErr) {
+      // best-effort
+    }
+    return {
+      crisis: {
+        id: seed.id,
+        title: `${seed.actor} seed`,
+        trigger: seed.fragment,
+        headlines: [],
+        situation: seed.fragment,
+        pressure: '(LLM-generated)',
+        decision_point: '(LLM-generated)',
+        failure_pattern: seed.failurePattern,
+        focal_axes: seed.focalAxes,
+        trigger_kind: 'seed-parameterized',
+        fromSeed: true,
+        seedFragment: seed.fragment,
+        actor: seed.actor,
+        sub_beat_count: inheritedSubBeatCount,
+        sub_beat_rationale: inheritedSubBeatRationale,
+      },
+      seedId: seed.id,
+      actor: seed.actor,
+      seedFragment: seed.fragment,
+      currentSubBeatCount: inheritedSubBeatCount,
+      currentSubBeatRationale: inheritedSubBeatRationale,
+    };
+  }
+  // turn 2+
+  const crisis = crisisFromWorld(priorWorld, `Turn ${turnNumber}`);
+  let nextSubBeatCount = currentSubBeatCount;
+  let nextSubBeatRationale = currentSubBeatRationale;
+  if (priorWorld && typeof priorWorld.sub_beat_count === 'number') {
+    nextSubBeatCount = priorWorld.sub_beat_count;
+    nextSubBeatRationale = priorWorld.sub_beat_rationale || currentSubBeatRationale;
+    crisis.sub_beat_count = nextSubBeatCount;
+    crisis.sub_beat_rationale = nextSubBeatRationale;
+  }
+  return {
+    crisis,
+    seedId: null,
+    actor: null,
+    seedFragment: null,
+    currentSubBeatCount: nextSubBeatCount,
+    currentSubBeatRationale: nextSubBeatRationale,
+  };
+}
+
 async function runLoop(options) {
   const {
     surface,
@@ -831,6 +1075,8 @@ function buildRunLog(result) {
 
 module.exports = {
   runLoop,
+  stepTurn,            // cycle 12c: per-turn API for the v1 web surface
+  pickCrisis,          // cycle 12c: crisis-selection primitive
   generateRunId,
   crisisFromWorld,
   readPlayerMove,

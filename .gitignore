@@ -5,7 +5,8 @@ node_modules/
 _site/
 dist/
 build/
-runs/
+runs/                    # legacy simulation output (gitignored)
+data/runs/               # v1 web surface session files (cycle 12c, gitignored)
 *.log
 .DS_Store
 .idea/

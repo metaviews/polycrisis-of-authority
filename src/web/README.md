@@ -23,6 +23,47 @@ no auth, no write paths, no LLM call, no database. the v0 surface is a *reader* 
 - the corpus-quote footer for turns (the v0 surface reads committed corpus quotes from the seed data; the live quote picker is a 12c+ concern)
 - the advisor interaction (the dock renders the advisor strip but the buttons are non-functional in v0)
 
+## cycle 12c — v1 surface (interactive)
+
+cycle 12c replaces this server with the v1 server (`src/web/server.js`
+is now the v1 server; the v0 read-only paths still work). the v1
+server has two new routes:
+
+- `POST /runs` — start a new run. returns the run id and the first turn.
+- `POST /runs/:id/move` — submit a move. returns the next turn or the end-of-run report.
+
+the v1 server integrates with the engine through the cycle 12c
+per-turn API (`stepTurn` and `pickCrisis` in `src/sim/run-loop.js`).
+each turn is a separate HTTP request; the state is persisted to
+`data/runs/<id>.json` between requests.
+
+## the auth decision (v1 ships without bearer-token)
+
+the spec's decision (1) called for bearer-token auth. the v1
+surface ships *without* it. the run URL is the access — the
+player bookmarks the run URL and comes back to it. reasons:
+
+- the project's no-PII posture
+- the user has been gating `npm install` (which would be needed for sqlite or auth-cookie libraries)
+- the run URL was already the access model in v0
+- v2 (cycle 13+) can layer auth on top: a small addition to the session contract
+
+## the engine change (cycle 12c)
+
+`src/sim/run-loop.js` gained two new exported functions:
+
+- `stepTurn({ state, crisis, playerMove, identity, turnNumber, priorTurns, callLLM, callFallback, ... })` — runs one turn. takes the current state, the crisis, and the player's move; calls the LLM; applies the delta; checks for collapse; returns the new state and the world record.
+- `pickCrisis({ turnNumber, state, priorWorld, seed, seedId, ... })` — selects the crisis to display.
+
+the change is *additive*: no logic changes, no behavior changes
+to the existing `runLoop`. the discord bot and terminal version
+are unaffected — they still call `runLoop` for their in-process
+flow.
+
+the v1 server uses `stepTurn` and `pickCrisis` per HTTP request.
+the engine is unaware of HTTP; the engine is unaware of the web
+surface.
+
 ## file layout
 
 ```
