@@ -619,3 +619,16 @@ This log is per Principle 4.5 (Dancing with the Details in the Design) — the w
 - **Verification:** 59 of 59 ad-hoc checks pass at `/tmp/hermes-verify-12a-mockups.sh`. Categories: file existence, file sizes, identical crisis content, spec load-bearing elements (corpus/advisor/status/submit), aesthetic compliance, structural distinctness, compare page iframes, headless chromium render check. Visual confirmation via `chromium --screenshot` PNGs.
 - **Filed:** `wiki/prototypes/2026-07-26-cycle-12a-mockups.md`.
 - **Next:** user reviews the mockups. picks A, B, or a variant. `direction-approved.md` is filed at the gate path. cycle 12b starts (cold-start + artifact-serving route — v0 surface, ships before any v1 run-start code).
+
+## 2026-07-26 — Web direction approved (cycle 12a → 12b handoff)
+
+- **Action:** User picked Direction B (chat-thread scroll) from the three real HTML mockups at `/tmp/hermes-mockups-12a/`. A was the spec's recommended starting point; B was the defensible alternative. Filed `.hermes/projects/web/direction-approved.md` at the gate path specified in `docs/24-web-architecture.md`.
+- **What B commits to (beyond the spec):**
+  1. prior turns visible on the per-turn page (turns 1..N stacked, prior turns in muted form)
+  2. corpus quote per turn, including prior turns (more aggressive reading of decision 2)
+  3. decision input pinned to bottom (always visible while scrolling, ~140px dock)
+- **Design calls resolved:**
+  - post-game share URL: `GET /runs/:id` serves the run with state-driven content (`state='active'` renders the per-turn page; `state='ended'` renders the same surface with end-of-run prose appended). One render path. Decision 3 (a) honored: the report is the run URL at state='ended'.
+  - advisor panel position: B's dock-strip is functionally the spec's "side panel" (the dock is at the bottom of the viewport, which on a wide screen is the right side).
+- **Follow-up for narrow viewports (12c+ polish, not 12b scope):** a "minimize" affordance on the decision dock, or a scroll-up-to-focus behavior on mobile. The 140px dock takes most of a phone in landscape.
+- **Next gate:** `architecture-frozen.md` before cycle 12c code lands. Cycle 12b starts: cold-start page + artifact-serving route, v0 surface, ships before any v1 run-start code. File layout: `src/web/` created with the surface adapter skeleton (`src/web/surface.js` modeled on `src/bot/surface.js`). No engine code touched.
