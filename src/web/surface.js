@@ -104,13 +104,6 @@ function renderTurnCard({ turn, isPrior, corpusQuote }) {
   const cls = isPrior ? 'turn turn-prior' : 'turn';
   const headlines = (turn.headlines || []).map(h => `<li>${inlineMarkdown(h)}</li>`).join('');
 
-  let advisorList = '';
-  if (turn.advisors && Array.isArray(turn.advisors)) {
-    advisorList = turn.advisors.map(a =>
-      `<button class="advisor" data-active="${a.active ? 'true' : 'false'}" data-voice="${escapeHtml(a.voice)}">${escapeHtml(a.label)}</button>`
-    ).join('');
-  }
-
   let corpus = '';
   if (corpusQuote) {
     corpus = `<p class="corpus-inline"><span class="q-label">corpus</span><span class="q">${inlineMarkdown(corpusQuote.text)}</span><a href="${escapeHtml(corpusQuote.href)}">— ${escapeHtml(corpusQuote.title)}</a></p>`;
@@ -129,7 +122,6 @@ function renderTurnCard({ turn, isPrior, corpusQuote }) {
     </div>
     ${turn.pressure ? `<div class="pressure"><p>${inlineMarkdown(turn.pressure)}</p></div>` : ''}
     ${turn.decision_question ? `<p style="margin-top: 1rem; font-style: italic; color: var(--muted);">${inlineMarkdown(turn.decision_question)}</p>` : ''}
-    ${advisorList ? `<div class="advisor-strip">${advisorList}</div>` : ''}
     ${corpus}
   </section>`;
 }
@@ -154,9 +146,46 @@ function renderEndOfRun({ run, endProse }) {
 // read-only. cycle 12c wires the form to POST /runs/:id/move.
 // ---------------------------------------------------------------
 
-function renderDecisionDock({ currentTurn, runId }) {
+function renderDecisionDock({ currentTurn, runId, advisorRead, consultedVoice }) {
   if (!currentTurn || !currentTurn.decision_question) return '';
   if (!runId) return '';
+
+  // the read area shows the most recent consult (if any), or a hint.
+  // consultedVoice is the voice the player has clicked (if any) for
+  // the current turn. advisorRead is the rendered read object.
+  let readArea = '';
+  if (advisorRead) {
+    const pagesList = (advisorRead.retrievedPages || []).slice(0, 4).map(p => {
+      const title = escapeHtml(p.title || p.href || 'page');
+      const href = escapeHtml(p.href || '#');
+      return `<a href="${href}" class="advisor-source">${title}</a>`;
+    }).join(', ');
+    readArea = `
+      <div class="advisor-read-panel" id="advisor-read-panel">
+        <p class="advisor-read-voice">${escapeHtml(advisorRead.voiceLabel || advisorRead.voice)}${advisorRead.fromCache ? ' <span class="cached-tag">(cached)</span>' : ''}</p>
+        <p class="advisor-read-body">${inlineMarkdown(advisorRead.read)}</p>
+        ${pagesList ? `<p class="advisor-read-sources">Sources: ${pagesList}</p>` : ''}
+      </div>
+    `;
+  } else {
+    readArea = `<div class="advisor-read-panel empty" id="advisor-read-panel">
+      <p class="advisor-read-empty">Consult an advisor to see how this position sees the current crisis. (Read does not consume a turn.)</p>
+    </div>`;
+  }
+
+  // 5 advisor voices (matches the engine's ADVISOR_VOICES)
+  const voices = [
+    { key: 'frontier-lab', label: 'Frontier Lab' },
+    { key: 'civil-society', label: 'Civil Society' },
+    { key: 'state-security', label: 'State Security' },
+    { key: 'open-source', label: 'Open Source' },
+    { key: 'international-ally', label: 'Intl. Ally' },
+  ];
+  const buttons = voices.map(v => {
+    const active = consultedVoice === v.key ? 'true' : 'false';
+    return `<button class="advisor-button" data-voice="${v.key}" data-active="${active}" onclick="return polycrisisConsultAdvisor('${escapeHtml(runId)}', '${v.key}');">${v.label}</button>`;
+  }).join('');
+
   return `<div class="decision-dock">
     <div class="decision-dock-inner">
       <p class="decision-question">${inlineMarkdown(currentTurn.decision_question)}</p>
@@ -167,11 +196,15 @@ function renderDecisionDock({ currentTurn, runId }) {
         </div>
         <p class="dock-hint">End your move with a blank line. Type freely; the regime interprets prose, not keywords.</p>
       </form>
+      <div class="advisor-panel">
+        <p class="advisor-label">Consult an advisor</p>
+        <div class="advisor-buttons">${buttons}</div>
+        ${readArea}
+      </div>
     </div>
   </div>
   <script>
     // v1: blank-line-to-submit on the client, JSON POST to /runs/:id/move.
-    // the server returns the run page; we replace the document with it.
     function polycrisisSubmitMove(event, runId) {
       event.preventDefault();
       var ta = document.getElementById('move-text');
@@ -187,11 +220,9 @@ function renderDecisionDock({ currentTurn, runId }) {
         if (!r.ok) { return r.text().then(function(t) { throw new Error('HTTP ' + r.status + ': ' + t); }); }
         return r.text();
       }).then(function(html) {
-        // replace the document with the server's response (the new run page)
         document.open();
         document.write(html);
         document.close();
-        // scroll to the bottom so the player sees the new turn
         window.scrollTo(0, document.body.scrollHeight);
       }).catch(function(err) {
         if (btn) { btn.disabled = false; btn.textContent = 'Submit move'; }
@@ -199,6 +230,54 @@ function renderDecisionDock({ currentTurn, runId }) {
         if (hint) { hint.textContent = 'Submit failed: ' + err.message; hint.style.color = '#8a2a1f'; }
       });
       return false;
+    }
+
+    // 12d+1: advisor consult. POSTs to /runs/:id/advisor, renders the read.
+    function polycrisisConsultAdvisor(runId, voice) {
+      var panel = document.getElementById('advisor-read-panel');
+      if (panel) { panel.classList.remove('empty'); panel.innerHTML = '<p class="advisor-read-empty">Consulting ' + voice + '…</p>'; }
+      var buttons = document.querySelectorAll('.advisor-button');
+      buttons.forEach(function(b) { b.disabled = true; });
+      fetch('/runs/' + encodeURIComponent(runId) + '/advisor', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ voice: voice })
+      }).then(function(r) {
+        if (!r.ok) { return r.text().then(function(t) { throw new Error('HTTP ' + r.status + ': ' + t); }); }
+        return r.json();
+      }).then(function(data) {
+        // build the read panel
+        var html = '<p class="advisor-read-voice">' + escapeHtml(data.voice) + (data.fromCache ? ' <span class="cached-tag">(cached)</span>' : '') + '</p>';
+        html += '<p class="advisor-read-body">' + data.read + '</p>';
+        if (data.retrievedPages && data.retrievedPages.length > 0) {
+          html += '<p class="advisor-read-sources">Sources: ';
+          for (var i = 0; i < Math.min(data.retrievedPages.length, 4); i++) {
+            var p = data.retrievedPages[i];
+            html += '<a href="' + escapeHtml(p.href || '#') + '" class="advisor-source">' + escapeHtml(p.title || p.href || 'page') + '</a>';
+            if (i < Math.min(data.retrievedPages.length, 4) - 1) html += ', ';
+          }
+          html += '</p>';
+        }
+        if (panel) { panel.innerHTML = html; panel.classList.remove('empty'); }
+        // mark the active button
+        buttons.forEach(function(b) {
+          b.disabled = false;
+          b.dataset.active = (b.dataset.voice === voice) ? 'true' : 'false';
+        });
+      }).catch(function(err) {
+        if (panel) { panel.innerHTML = '<p class="advisor-read-error">Consult failed: ' + escapeHtml(err.message) + '</p>'; }
+        buttons.forEach(function(b) { b.disabled = false; });
+      });
+      return false;
+    }
+
+    // small client-side escape (used in advisor consult)
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
     }
   </script>`;
 }
@@ -333,15 +412,104 @@ a:hover { text-decoration-thickness: 2px; }
   color: var(--muted); margin: 0.4rem 0 0; letter-spacing: 0.04em;
 }
 
-.advisor-strip { display: flex; gap: 0.4rem; margin-top: 0.6rem; flex-wrap: wrap; }
-.advisor {
-  font-family: ${FONTS.mono}; font-size: 0.7em;
-  text-transform: uppercase; letter-spacing: 0.04em;
-  color: var(--muted); border: 1px solid var(--rule);
-  background: var(--bg); padding: 0.4rem 0.7rem; cursor: pointer;
+.advisor-panel {
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--rule);
 }
-.advisor:hover { color: var(--ink); border-color: var(--ink); }
-.advisor[data-active="true"] { color: var(--accent); border-color: var(--accent); }
+.advisor-label {
+  font-family: ${FONTS.mono};
+  font-size: 0.7em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 0 0 0.6rem;
+}
+.advisor-buttons {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.8rem;
+}
+.advisor-button {
+  font-family: ${FONTS.mono};
+  font-size: 0.7em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+}
+.advisor-button:hover { color: var(--ink); border-color: var(--ink); }
+.advisor-button[data-active="true"] {
+  color: var(--accent);
+  border-color: var(--accent);
+  border-width: 1px;
+}
+.advisor-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.advisor-read-panel {
+  background: var(--card-bg);
+  border-left: 2px solid var(--rule);
+  padding: 0.8rem 1rem;
+  margin-top: 0.4rem;
+  min-height: 2.5rem;
+}
+.advisor-read-panel.empty {
+  background: transparent;
+  border-left-style: dashed;
+  font-style: italic;
+}
+.advisor-read-voice {
+  font-family: ${FONTS.mono};
+  font-size: 0.7em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin: 0 0 0.4rem;
+}
+.advisor-read-voice .cached-tag {
+  color: var(--muted);
+  font-style: italic;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.advisor-read-body {
+  font-family: ${FONTS.serif};
+  font-size: 0.95em;
+  line-height: 1.55;
+  color: var(--ink);
+  margin: 0 0 0.5rem;
+}
+.advisor-read-sources {
+  font-family: ${FONTS.mono};
+  font-size: 0.7em;
+  color: var(--muted);
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+.advisor-source {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+.advisor-read-empty {
+  font-family: ${FONTS.serif};
+  font-size: 0.85em;
+  color: var(--muted);
+  margin: 0;
+}
+.advisor-read-error {
+  font-family: ${FONTS.serif};
+  font-size: 0.9em;
+  color: #8a2a1f;
+  margin: 0;
+}
 
 .corpus-inline {
   font-family: ${FONTS.mono}; font-size: 0.7em;
@@ -416,7 +584,7 @@ ${mockupBadge}
  * @param {Object}  opts.endProse - optional HTML for the end-of-run section (only for ended runs)
  * @returns {string} HTML
  */
-function renderRunPage({ run, turns, corpusQuotes, isActive, endProse }) {
+function renderRunPage({ run, turns, corpusQuotes, isActive, endProse, advisorRead, consultedVoice }) {
   if (!run) throw new Error('renderRunPage: run is required');
   if (!Array.isArray(turns)) turns = [];
 
@@ -430,7 +598,7 @@ function renderRunPage({ run, turns, corpusQuotes, isActive, endProse }) {
   }).join('');
 
   const body = cards + renderEndOfRun({ run, endProse });
-  const dock = isActive ? renderDecisionDock({ currentTurn, runId: run.run_id }) : '';
+  const dock = isActive ? renderDecisionDock({ currentTurn, runId: run.run_id, advisorRead, consultedVoice }) : '';
 
   return renderPageShell({
     title: `Run ${run.run_id} — Polycrisis of Authority`,
@@ -710,6 +878,7 @@ module.exports = {
   createWebSurface,
   // also export the render* functions for direct use (e.g. in tests)
   renderRunPage,
+  renderDecisionDock,        // cycle 12d+1: exposed for the verifier
   renderColdStart,
   renderStatusPage,        // cycle 12d: /status page
   renderArtifact,

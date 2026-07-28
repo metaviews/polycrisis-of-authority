@@ -105,6 +105,34 @@ cycle 12d finishes the v1 surface. three additions, all small:
   in `pickQuoteForTurn`.
 - v2 (cycle 13+) is the auth layer + multi-player.
 
+## cycle 12d+1 — advisor interaction wired
+
+cycle 12d+1 wires the advisor panel to the engine's `consult()`
+function. before this cycle, the panel was rendered but the
+buttons were non-functional.
+
+- **the advisor panel** is in the decision dock area, below the
+  form. 5 buttons (frontier-lab, civil-society, state-security,
+  open-source, international-ally) and a read area. clicking a
+  button POSTs to `/runs/:id/advisor` and renders the read.
+- **the read area** shows the voice label, the read body in serif
+  prose, and the corpus pages that grounded the response.
+- **the cache** is `session.advisorReads[`${currentTurn}:${voice}`]`.
+  Re-clicks return the cached read with `(cached)` tag.
+- **the turn-1 bug fix** — the decision dock was not rendering on
+  turn 1 because the v1 server wasn't passing the current crisis
+  to the surface adapter. cycle 12d+1 fixes this. the dock now
+  renders on the player's first interaction.
+
+no engine changes. cycle 12d+1 uses the existing `consult()` from
+`src/sim/advisors.js` — the same function the discord bot uses.
+
+## after cycle 12d+1
+
+the v1 surface is now feature-complete per the spec. 5 decisions
+(auth, corpus, post-game, trajectory, advisor) all landed. v2
+(cycle 13+) is the auth layer + multi-player.
+
 ## file layout
 
 ```

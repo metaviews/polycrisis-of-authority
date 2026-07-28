@@ -51,6 +51,7 @@ const { renderArtifactHtml } = require('../sim/artifact-render');
 const { narrateRunEnd } = require('../sim/post-game-narrator');
 const { pickCorpusQuote } = require('../../scripts/wiki-query');
 const { selectAtmospherics } = require('../sim/atmospherics');
+const { consult, ADVISOR_VOICES } = require('../sim/advisors');
 
 const ROOT_DIR = path.join(__dirname, '..', '..');
 const SEED_RUNS_DIR = path.join(ROOT_DIR, 'data', 'seed-runs');
@@ -212,6 +213,43 @@ function pickQuoteForTurn(turn, priorTurn) {
     };
   }
   return null;
+}
+
+// ---------------------------------------------------------------
+// advisor-read derivation (12d+1)
+//
+// given a run record (live or seed), return the most recent advisor
+// read for the current turn (if any) and the voice. this is what
+// the surface adapter renders in the dock's read area.
+// ---------------------------------------------------------------
+
+const ADVISOR_LABELS = {
+  'frontier-lab': 'Frontier Lab',
+  'civil-society': 'Civil Society',
+  'state-security': 'State Security',
+  'open-source': 'Open Source',
+  'international-ally': 'Intl. Ally',
+};
+
+function deriveAdvisorRead(run) {
+  if (!run || !run.advisorReads || typeof run.advisorReads !== 'object') return null;
+  const currentTurn = run.currentTurn || 0;
+  // find the most recent consult for the current turn
+  let mostRecent = null;
+  for (const [key, value] of Object.entries(run.advisorReads)) {
+    const [turnStr, voice] = key.split(':');
+    if (parseInt(turnStr, 10) === currentTurn && value) {
+      if (!mostRecent || (value.cachedAt && value.cachedAt > (mostRecent.cachedAt || ''))) {
+        mostRecent = { ...value, voice, voiceLabel: ADVISOR_LABELS[voice] || voice };
+      }
+    }
+  }
+  return mostRecent;
+}
+
+function deriveConsultedVoice(run) {
+  const advisorRead = deriveAdvisorRead(run);
+  return advisorRead ? advisorRead.voice : null;
 }
 
 async function readBody(req) {
@@ -392,7 +430,10 @@ function handleRunPage(req, res, runId) {
     run.report?.narrative || run.report?.outcome_line || null
   ) : null;
 
-  // the surface adapter expects turns in a different shape; we need to convert
+  // the surface adapter expects turns in a different shape; we need to convert.
+  // for live runs, also include the CURRENT crisis as the last turn (it's
+  // not in run.turns[] yet because the player hasn't moved). this is the
+  // turn the player is reasoning about RIGHT NOW.
   const surfaceTurns = turns.map(t => ({
     turn_number: t.turn,
     crisis_kind: t.crisis?.failure_pattern || '',
@@ -405,12 +446,29 @@ function handleRunPage(req, res, runId) {
     advisors: [],
   }));
 
+  if (isActive && run.currentCrisis) {
+    const currentTurnNum = (turns.length || 0) + 1;
+    surfaceTurns.push({
+      turn_number: currentTurnNum,
+      crisis_kind: run.currentCrisis.failure_pattern || '',
+      heading: run.currentCrisis.title || '',
+      situation: run.currentCrisis.situation || run.currentCrisis.trigger || '',
+      pressure: run.currentCrisis.pressure || '',
+      decision_question: run.currentCrisis.decision_point || '',
+      headlines: run.currentCrisis.headlines || [],
+      player_move: null,
+      advisors: [],
+    });
+  }
+
   const html = surface.renderRunPage({
     run: surfaceRun,
     turns: surfaceTurns,
     corpusQuotes: effectiveCorpusQuotes,
     isActive,
     endProse,
+    advisorRead: deriveAdvisorRead(run),
+    consultedVoice: deriveConsultedVoice(run),
   });
   send(res, 200, html);
 }
@@ -679,8 +737,14 @@ async function handleSubmitMove(req, res, runId) {
     turns_completed: session.turns.length,
   };
 
-  // build the surface turns from the session's turn records
-  const surfaceTurns = session.turns.map(t => ({
+  // isActive: a live run (not ended) renders the dock.
+  const isActive = !session.endedAt;
+
+  // the surface adapter expects turns in a different shape; we need to convert.
+  // for live runs, also include the CURRENT crisis as the last turn (it's
+  // not in run.turns[] yet because the player hasn't moved). this is the
+  // turn the player is reasoning about RIGHT NOW.
+  const surfaceTurns = turns.map(t => ({
     turn_number: t.turn,
     crisis_kind: t.crisis?.failure_pattern || '',
     heading: t.crisis?.title || '',
@@ -692,17 +756,16 @@ async function handleSubmitMove(req, res, runId) {
     advisors: [],
   }));
 
-  // if active, include the current crisis as the last turn
-  const isActive = !session.endedAt;
-  if (isActive) {
+  if (isActive && run.currentCrisis) {
+    const currentTurnNum = (turns.length || 0) + 1;
     surfaceTurns.push({
-      turn_number: session.currentTurn,
-      crisis_kind: session.currentCrisis.failure_pattern,
-      heading: session.currentCrisis.title,
-      situation: session.currentCrisis.situation,
-      pressure: session.currentCrisis.pressure,
-      decision_question: session.currentCrisis.decision_point,
-      headlines: session.currentCrisis.headlines || [],
+      turn_number: currentTurnNum,
+      crisis_kind: run.currentCrisis.failure_pattern || '',
+      heading: run.currentCrisis.title || '',
+      situation: run.currentCrisis.situation || run.currentCrisis.trigger || '',
+      pressure: run.currentCrisis.pressure || '',
+      decision_question: run.currentCrisis.decision_point || '',
+      headlines: run.currentCrisis.headlines || [],
       player_move: null,
       advisors: [],
     });
@@ -724,8 +787,89 @@ async function handleSubmitMove(req, res, runId) {
     corpusQuotes: surfaceCorpusQuotes,
     isActive,
     endProse,
+    advisorRead: deriveAdvisorRead(session),
+    consultedVoice: deriveConsultedVoice(session),
   });
   send(res, 200, html, 'text/html; charset=utf-8');
+}
+
+// ---------------------------------------------------------------
+// v1 routes — start a new run, submit a move, consult an advisor
+// ---------------------------------------------------------------
+
+async function handleConsultAdvisor(req, res, runId) {
+  // 12d+1: advisor consult. takes { voice } and returns the corpus-grounded
+  // read. cached per (currentTurn, voice) so a re-click returns instantly.
+  // the read is part of the session but not the run log/artifact.
+  const found = findRun(runId);
+  if (!found || found.source !== 'live') {
+    return send404(res, `run ${runId} is not an active v1 session`);
+  }
+  const session = found.run;
+  if (session.endedAt || session.outcome) {
+    return send404(res, `run ${runId} has already ended`);
+  }
+
+  let body;
+  try {
+    body = await readBody(req);
+  } catch (err) {
+    return send(res, 400, JSON.stringify({ error: 'invalid JSON body' }), 'application/json');
+  }
+  const voice = (body.voice || '').trim();
+  if (!ADVISOR_VOICES.includes(voice)) {
+    return send(res, 400, JSON.stringify({ error: `unknown voice: ${voice}. valid: ${ADVISOR_VOICES.join(', ')}` }), 'application/json');
+  }
+
+  // check the cache: session.advisorReads[`${currentTurn}:${voice}`]
+  if (!session.advisorReads || typeof session.advisorReads !== 'object') {
+    session.advisorReads = {};
+  }
+  const cacheKey = `${session.currentTurn}:${voice}`;
+  if (session.advisorReads[cacheKey]) {
+    const cached = session.advisorReads[cacheKey];
+    return sendJson(res, { voice, read: cached.read, retrievedPages: cached.retrievedPages, fromCache: true });
+  }
+
+  // call consult(). this is the engine's advisor function — same one
+  // the discord bot uses. the LLM call is ~5-10s.
+  let read;
+  try {
+    read = await consult({
+      voice,
+      crisis: session.currentCrisis,
+      state: session.state,
+      playerMove: '[player is consulting before writing their move]',
+      identity: session.identity,
+    });
+  } catch (err) {
+    console.error('[web] consult failed:', err.message);
+    return send(res, 500, JSON.stringify({ error: `consult failed: ${err.message}` }), 'application/json');
+  }
+
+  // we don't have retrievedPages from the engine's consult() — it returns
+  // only the read. but we can re-run the same retrieval to get the pages.
+  // (cycle 5e+ added this as retrieveAdvisorContext in advisors.js)
+  let retrievedPages = [];
+  try {
+    const { retrieveAdvisorContext } = require('../sim/advisors');
+    const pages = retrieveAdvisorContext(voice, session.currentCrisis, '[player is consulting before writing their move]');
+    retrievedPages = pages.map(p => ({ title: p.title, href: p.href }));
+  } catch (err) {
+    // best-effort: if retrieval fails, we just don't show sources
+  }
+
+  // cache the result
+  session.advisorReads[cacheKey] = {
+    read,
+    retrievedPages,
+    cachedAt: new Date().toISOString(),
+  };
+  // persist
+  const sessionPath = path.join(REAL_RUNS_DIR, `${runId}.json`);
+  writeJsonSafe(sessionPath, session);
+
+  sendJson(res, { voice, read, retrievedPages, fromCache: false });
 }
 
 // ---------------------------------------------------------------
@@ -745,6 +889,10 @@ async function route(req, res) {
     const moveMatch = pathname.match(/^\/runs\/([a-zA-Z0-9_-]+)\/move\/?$/);
     if (moveMatch) {
       return handleSubmitMove(req, res, moveMatch[1]);
+    }
+    const advisorMatch = pathname.match(/^\/runs\/([a-zA-Z0-9_-]+)\/advisor\/?$/);
+    if (advisorMatch) {
+      return handleConsultAdvisor(req, res, advisorMatch[1]);
     }
     res.writeHead(405, { 'content-type': 'text/plain' });
     return res.end('405 method not allowed');
@@ -801,6 +949,7 @@ server.listen(PORT, HOST, () => {
   console.log(`[web]   GET  /runs/:id/status      system status (6 axes, hidden during play)`);
   console.log(`[web]   POST /runs                 start a new run`);
   console.log(`[web]   POST /runs/:id/move        submit a move`);
+  console.log(`[web]   POST /runs/:id/advisor     consult an advisor (corpus-grounded read)`);
   console.log(`[web] data:`);
   console.log(`[web]   ${all.length} runs across live + seed + legacy sources`);
   if (all.length > 0) {
