@@ -171,6 +171,49 @@ function send404(res, msg = 'not found') {
   send(res, 404, `<!DOCTYPE html><html><body style="font-family: ui-monospace, monospace; padding: 2rem; color: #6b6862;"><h1>404</h1><p>${msg}</p><p><a href="/">back to cold start</a></p></body></html>`);
 }
 
+// ---------------------------------------------------------------
+// deliberate corpus-quote picker (cycle 12d)
+//
+// uses the project's pickCorpusQuote (cycle 5e) at display time, with
+// a forward-pointing preferredHref — the prior turn's grounding trace
+// becomes this turn's preferred corpus entry. this creates a chain:
+// turn 1's quote is random, turn 2's points to what grounded turn 1,
+// turn 3's points to what grounded turn 2, etc. the player can browse
+// the corpus as a knowledge-graph traversal of the run.
+//
+// if pickCorpusQuote returns null (no wiki entries match), fall back
+// to the LLM's grounding_trace derivation.
+// ---------------------------------------------------------------
+
+function pickQuoteForTurn(turn, priorTurn) {
+  const priorHref = (priorTurn && priorTurn.world && priorTurn.world.grounding_trace && priorTurn.world.grounding_trace[0]) || null;
+  // pickCorpusQuote expects a wiki path like "wiki/concepts/capabilities-eval"
+  // the prior turn's grounding_trace already gives us that
+  let preferHref = null;
+  if (priorHref) {
+    // normalize: turn "wiki/concepts/foo" into a path the picker understands
+    preferHref = priorHref.startsWith('wiki/') ? priorHref : `wiki/${priorHref}`;
+  }
+  const picked = pickCorpusQuote(preferHref);
+  if (picked && picked.text) {
+    return {
+      text: picked.text,
+      href: picked.href || '/wiki/index',
+      title: picked.title || 'Corpus',
+    };
+  }
+  // fallback: derive from the LLM's grounding_trace
+  if (turn && turn.world && turn.world.grounding_trace && turn.world.grounding_trace.length > 0) {
+    const trace = turn.world.grounding_trace[0];
+    return {
+      text: turn.world.interpretive_gloss || turn.grammarOutput?.interpretive_gloss || '',
+      href: `/wiki/${trace.replace(/^wiki\//, '').replace(/\.md$/, '')}`,
+      title: (trace.split('/').pop() || '').replace(/\.md$/, ''),
+    };
+  }
+  return null;
+}
+
 async function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -330,16 +373,9 @@ function handleRunPage(req, res, runId) {
   const turns = Array.isArray(run.turns) ? run.turns : [];
   const corpusQuotes = (run.corpus_quotes && Array.isArray(run.corpus_quotes)) ? run.corpus_quotes : null;
 
-  // for live runs, we don't have committed corpus_quotes — derive from the turn data
-  const effectiveCorpusQuotes = corpusQuotes || turns.map(t => {
-    if (t.world && t.world.grounding_trace && t.world.grounding_trace.length > 0) {
-      return {
-        text: t.world.interpretive_gloss || t.grammarOutput?.interpretive_gloss || '',
-        href: `/wiki/${t.world.grounding_trace[0].replace(/^wiki\//, '').replace(/\.md$/, '')}`,
-        title: (t.world.grounding_trace[0].split('/').pop() || '').replace(/\.md$/, ''),
-      };
-    }
-    return null;
+  // for live runs, derive corpus quotes deliberately using the cycle 12d picker
+  const effectiveCorpusQuotes = corpusQuotes || turns.map((t, i) => {
+    return pickQuoteForTurn(t, i > 0 ? turns[i - 1] : null);
   });
 
   // normalize the run shape for the surface adapter
@@ -394,6 +430,32 @@ function handleRunReport(req, res, runId) {
   }
   // fall back: render the run page
   handleRunPage(req, res, runId);
+}
+
+function handleRunStatus(req, res, runId) {
+  // /status — the only place the 6 axes are visible. Spec decision 4.
+  // reachable via the run-meta link in the run page. not on the main surface.
+  const found = findRun(runId);
+  if (!found) return send404(res, `run ${runId} not found`);
+  const { run } = found;
+
+  // for live runs, the state is the current state; for ended runs, it's the final state
+  const state = (run.state) || (run.turns && run.turns.length > 0 ? run.turns[run.turns.length - 1].stateAfter : null);
+  if (!state) {
+    return send404(res, `run ${runId} has no state to display`);
+  }
+
+  const statusRun = {
+    run_id: run.runId || run.run_id,
+    started_at: run.startedAt || run.started_at,
+    ended_at: run.endedAt || run.ended_at,
+    model: run.model,
+    outcome: run.outcome,
+    currentTurn: run.currentTurn || (run.turns && run.turns.length) || 0,
+  };
+
+  const html = surface.renderStatusPage({ run: statusRun, state });
+  send(res, 200, html);
 }
 
 // ---------------------------------------------------------------
@@ -646,16 +708,9 @@ async function handleSubmitMove(req, res, runId) {
     });
   }
 
-  // corpus quotes from the turn records
-  const surfaceCorpusQuotes = session.turns.map(t => {
-    if (t.world && t.world.grounding_trace && t.world.grounding_trace.length > 0) {
-      return {
-        text: t.world.interpretive_gloss || t.grammarOutput?.interpretive_gloss || '',
-        href: `/wiki/${t.world.grounding_trace[0].replace(/^wiki\//, '').replace(/\.md$/, '')}`,
-        title: (t.world.grounding_trace[0].split('/').pop() || '').replace(/\.md$/, ''),
-      };
-    }
-    return null;
+  // corpus quotes from the turn records (deliberate picker, cycle 12d)
+  const surfaceCorpusQuotes = session.turns.map((t, i) => {
+    return pickQuoteForTurn(t, i > 0 ? session.turns[i - 1] : null);
   });
   if (isActive) surfaceCorpusQuotes.push(null);
 
@@ -714,6 +769,10 @@ async function route(req, res) {
   if (reportMatch) {
     return handleRunReport(req, res, reportMatch[1]);
   }
+  const statusMatch = pathname.match(/^\/runs\/([a-zA-Z0-9_-]+)\/status\/?$/);
+  if (statusMatch) {
+    return handleRunStatus(req, res, statusMatch[1]);
+  }
   send404(res, `no route for ${pathname}`);
 }
 
@@ -739,6 +798,7 @@ server.listen(PORT, HOST, () => {
   console.log(`[web]   GET  /runs                 json list of runs`);
   console.log(`[web]   GET  /runs/:id             run page (B chat-thread layout)`);
   console.log(`[web]   GET  /runs/:id/report      post-game report (alias)`);
+  console.log(`[web]   GET  /runs/:id/status      system status (6 axes, hidden during play)`);
   console.log(`[web]   POST /runs                 start a new run`);
   console.log(`[web]   POST /runs/:id/move        submit a move`);
   console.log(`[web] data:`);

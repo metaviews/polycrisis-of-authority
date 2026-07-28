@@ -5,6 +5,14 @@
   "model": "minimax/minimax-m3",
   "outcome": "collapse",
   "turns_completed": 2,
+  "state": {
+    "legitimacy": 41,
+    "fiscal_slack": 55,
+    "elite_alignment": 38,
+    "ecological_debt": 28,
+    "narrative_coherence": 22,
+    "capability_frontier": 58
+  },
   "summary": "Two turns. The regime collapsed when a counter-narrative campaign forced the safety team to retract a finding it had not yet published. The collapse was sudden, after a long period in which the decisions seemed reasonable.",
   "turns": [
     {

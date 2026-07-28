@@ -154,18 +154,53 @@ function renderEndOfRun({ run, endProse }) {
 // read-only. cycle 12c wires the form to POST /runs/:id/move.
 // ---------------------------------------------------------------
 
-function renderDecisionDock({ currentTurn }) {
+function renderDecisionDock({ currentTurn, runId }) {
   if (!currentTurn || !currentTurn.decision_question) return '';
+  if (!runId) return '';
   return `<div class="decision-dock">
     <div class="decision-dock-inner">
       <p class="decision-question">${inlineMarkdown(currentTurn.decision_question)}</p>
-      <div class="decision-row">
-        <textarea placeholder="(v0: read-only. run-start lands in cycle 12c.)" disabled></textarea>
-        <button type="button" disabled>Submit</button>
-      </div>
-      <p class="dock-hint">v0 surface is read-only. The full v1 (run-start, move submission, advisor responses) lands in cycles 12c–12d.</p>
+      <form id="move-form" onsubmit="return polycrisisSubmitMove(event, '${escapeHtml(runId)}');">
+        <div class="decision-row">
+          <textarea id="move-text" name="text" placeholder=""></textarea>
+          <button type="submit">Submit move</button>
+        </div>
+        <p class="dock-hint">End your move with a blank line. Type freely; the regime interprets prose, not keywords.</p>
+      </form>
     </div>
-  </div>`;
+  </div>
+  <script>
+    // v1: blank-line-to-submit on the client, JSON POST to /runs/:id/move.
+    // the server returns the run page; we replace the document with it.
+    function polycrisisSubmitMove(event, runId) {
+      event.preventDefault();
+      var ta = document.getElementById('move-text');
+      var text = (ta.value || '').replace(/\\n+$/, ''); // strip trailing blank lines
+      if (!text.trim()) { ta.focus(); return false; }
+      var btn = event.target.querySelector('button[type=submit]');
+      if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+      fetch('/runs/' + encodeURIComponent(runId) + '/move', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text: text })
+      }).then(function(r) {
+        if (!r.ok) { return r.text().then(function(t) { throw new Error('HTTP ' + r.status + ': ' + t); }); }
+        return r.text();
+      }).then(function(html) {
+        // replace the document with the server's response (the new run page)
+        document.open();
+        document.write(html);
+        document.close();
+        // scroll to the bottom so the player sees the new turn
+        window.scrollTo(0, document.body.scrollHeight);
+      }).catch(function(err) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Submit move'; }
+        var hint = event.target.querySelector('.dock-hint');
+        if (hint) { hint.textContent = 'Submit failed: ' + err.message; hint.style.color = '#8a2a1f'; }
+      });
+      return false;
+    }
+  </script>`;
 }
 
 // ---------------------------------------------------------------
@@ -395,7 +430,7 @@ function renderRunPage({ run, turns, corpusQuotes, isActive, endProse }) {
   }).join('');
 
   const body = cards + renderEndOfRun({ run, endProse });
-  const dock = isActive ? renderDecisionDock({ currentTurn }) : '';
+  const dock = isActive ? renderDecisionDock({ currentTurn, runId: run.run_id }) : '';
 
   return renderPageShell({
     title: `Run ${run.run_id} — Polycrisis of Authority`,
@@ -403,6 +438,203 @@ function renderRunPage({ run, turns, corpusQuotes, isActive, endProse }) {
     runMeta: { run, currentTurn: currentTurnNum },
     isActive,
   }) + dock;
+}
+
+// ---------------------------------------------------------------
+// bandFor — small helper, mirrors src/sim/state.js#bandFor so the
+// surface adapter can render state bands without a hard import of
+// the engine. The bands are: holding, strained, eroded, collapsed.
+// The thresholds are: 0-49 collapsed, 50-59 eroded, 60-79 strained,
+// 80-100 holding. (Same as the engine.)
+// ---------------------------------------------------------------
+
+function bandFor(value) {
+  if (value < 50) return 'collapsed';
+  if (value < 60) return 'eroded';
+  if (value < 80) return 'strained';
+  return 'holding';
+}
+
+const BAND_COLOR = {
+  holding: 'var(--ink)',
+  strained: '#a87842',
+  eroded: '#8a4a1f',
+  collapsed: '#8a2a1f',
+};
+
+const BAND_LABEL = {
+  holding: 'holding',
+  strained: 'strained',
+  eroded: 'eroded',
+  collapsed: 'collapsed',
+};
+
+const STATE_AXES = [
+  { key: 'legitimacy', label: 'legitimacy' },
+  { key: 'fiscal_slack', label: 'fiscal slack' },
+  { key: 'elite_alignment', label: 'elite alignment' },
+  { key: 'ecological_debt', label: 'ecological debt' },
+  { key: 'narrative_coherence', label: 'narrative coherence' },
+  { key: 'capability_frontier', label: 'capability frontier' },
+];
+
+/**
+ * renderStatusPage — the /status page. Cycle 12d.
+ *
+ * Per spec decision 4: the system is hidden during play; /status is
+ * one click away but not on the main surface. This page is the only
+ * place the 6 axes become visible. It is austere — no charts, no
+ * sparklines, just the data and a back-link.
+ *
+ * @param {Object} opts
+ * @param {Object}  opts.run - the run record (run_id, started_at, ended_at, model, outcome, currentTurn)
+ * @param {Object}  opts.state - the current state (6 axes)
+ * @returns {string} HTML
+ */
+function renderStatusPage({ run, state }) {
+  if (!run || !state) {
+    return renderPageShell({
+      title: 'Status — Polycrisis of Authority',
+      body: '<p>No run loaded.</p>',
+      runMeta: null,
+      isActive: false,
+    });
+  }
+
+  const stateRows = STATE_AXES.map(axis => {
+    const v = state[axis.key];
+    const band = (v === undefined || v === null) ? '?' : bandFor(v);
+    const color = BAND_COLOR[band];
+    const pct = Math.max(0, Math.min(100, v || 0));
+    return `<div class="status-row">
+      <div class="status-axis">${escapeHtml(axis.label)}</div>
+      <div class="status-bar"><div class="status-fill" style="width: ${pct}%; background: ${color};"></div></div>
+      <div class="status-num">${v === undefined || v === null ? '—' : v}</div>
+      <div class="status-band" style="color: ${color};">${BAND_LABEL[band] || band}</div>
+    </div>`;
+  }).join('');
+
+  const turnLabel = run.outcome
+    ? `ended · ${run.outcome}`
+    : (run.endedAt ? 'ended' : `turn ${run.currentTurn || '?'}`);
+
+  const body = `
+    <h1 style="font-family: ${FONTS.serif}; font-weight: normal; font-size: 1.4em; margin: 0 0 0.4rem;">System status</h1>
+    <p class="mono" style="font-size: 0.78em; color: var(--muted); margin: 0 0 1.5rem; text-transform: uppercase; letter-spacing: 0.06em;">${escapeHtml(run.run_id)} · ${escapeHtml(turnLabel)} · ${escapeHtml(run.model || '')}</p>
+
+    <p class="mono" style="font-size: 0.78em; color: var(--muted); margin: 0 0 1rem; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid var(--rule); padding-bottom: 0.4rem;">Axes</p>
+    <div class="status-grid">${stateRows}</div>
+
+    <p class="mono" style="margin-top: 2rem; font-size: 0.7em; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em;"><a href="/runs/${escapeHtml(run.run_id)}">← back to the run</a></p>
+  `;
+
+  // the status page has its own chrome — the run-meta header is too active-run-shaped.
+  // simpler: minimal header with the run id and a back link.
+  const minimalMeta = `<header class="run-meta">
+    <span><a href="/" class="status-link">Polycrisis of Authority</a></span>
+    <span>Status · <span class="crisis-id">${escapeHtml(run.run_id)}</span></span>
+    <span><a href="/runs/${escapeHtml(run.run_id)}" class="status-link">← run</a></span>
+  </header>`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Status — Run ${escapeHtml(run.run_id)}</title>
+<style>
+:root {
+  --bg: ${PALETTE.bg};
+  --ink: ${PALETTE.ink};
+  --rule: ${PALETTE.rule};
+  --muted: ${PALETTE.muted};
+  --accent: ${PALETTE.accent};
+  --card-bg: ${PALETTE.cardBg};
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: ${FONTS.serif};
+  font-size: 17px;
+  line-height: 1.55;
+}
+.mono { font-family: ${FONTS.mono}; font-size: 0.85em; }
+a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+
+.page { max-width: 72ch; margin: 0 auto; padding: 3rem 1.5rem 6rem; }
+
+.run-meta {
+  font-family: ${FONTS.mono};
+  font-size: 0.75em;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 0.7rem;
+  margin-bottom: 2.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.run-meta .crisis-id { color: var(--ink); }
+.status-link {
+  font-family: ${FONTS.mono};
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+}
+.status-link:hover { color: var(--ink); }
+
+.status-grid { margin: 0 0 2rem; }
+.status-row {
+  display: grid;
+  grid-template-columns: 13rem 1fr 3rem 8rem;
+  gap: 0.8rem;
+  align-items: center;
+  margin: 0 0 0.6rem;
+  font-family: ${FONTS.mono};
+  font-size: 0.85em;
+}
+.status-axis {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+.status-bar {
+  height: 0.7rem;
+  background: var(--card-bg);
+  border: 1px solid var(--rule);
+  position: relative;
+}
+.status-fill {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+}
+.status-num {
+  text-align: right;
+  color: var(--ink);
+}
+.status-band {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.85em;
+}
+
+main { animation: fadein 0.2s ease-out; }
+@keyframes fadein { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+${minimalMeta}
+<main>
+${body}
+</main>
+</div>
+</body>
+</html>`;
 }
 
 /**
@@ -426,14 +658,14 @@ function renderColdStart({ runs, simulation }) {
 
   const body = `
     <h1 style="font-family: ${FONTS.serif}; font-weight: normal; font-size: 1.6em; margin: 0 0 0.4rem;">Polycrisis of Authority</h1>
-    <p class="mono" style="font-size: 0.78em; color: var(--muted); margin: 0 0 2rem; text-transform: uppercase; letter-spacing: 0.06em;">v0 surface · read-only</p>
+    <p class="mono" style="font-size: 0.78em; color: var(--muted); margin: 0 0 2rem; text-transform: uppercase; letter-spacing: 0.06em;">v1 surface · interactive</p>
 
     <div class="cold-start-frame">${inlineMarkdown(simulation || '')}</div>
 
-    <h2 class="mono" style="font-size: 0.78em; font-weight: normal; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 0.9rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--rule);">Finished runs</h2>
+    <h2 class="mono" style="font-size: 0.78em; font-weight: normal; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 0.9rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--rule);">Runs</h2>
     ${list ? `<ul class="run-list">${list}</ul>` : '<p class="mono" style="color: var(--muted); font-size: 0.85em;">(no runs yet)</p>'}
 
-    <p class="mono" style="margin-top: 2.5rem; font-size: 0.7em; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em;">v0 is the read-only surface. run-start and move submission land in cycles 12c–12d.</p>
+    <p class="mono" style="margin-top: 2.5rem; font-size: 0.7em; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em;">v1 is the interactive surface. click any run to view or play.</p>
   `;
 
   return renderPageShell({
@@ -479,10 +711,12 @@ module.exports = {
   // also export the render* functions for direct use (e.g. in tests)
   renderRunPage,
   renderColdStart,
+  renderStatusPage,        // cycle 12d: /status page
   renderArtifact,
   // export helpers for downstream use
   escapeHtml,
   inlineMarkdown,
+  bandFor,                 // cycle 12d: matches engine's bandFor
   PALETTE,
   FONTS,
 };

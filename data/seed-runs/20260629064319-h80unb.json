@@ -5,6 +5,14 @@
   "model": "minimax/minimax-m3",
   "outcome": "no-collapse",
   "turns_completed": 3,
+  "state": {
+    "legitimacy": 68,
+    "fiscal_slack": 64,
+    "elite_alignment": 58,
+    "ecological_debt": 32,
+    "narrative_coherence": 51,
+    "capability_frontier": 60
+  },
   "summary": "Three turns, the regime held. The 60-day review was extended to 90 days after the lab cited evaluation capacity. The second-lab coordination problem was deferred to a parallel review window rather than a coordinated one.",
   "turns": [
     {

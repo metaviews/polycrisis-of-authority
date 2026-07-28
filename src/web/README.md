@@ -64,6 +64,47 @@ the v1 server uses `stepTurn` and `pickCrisis` per HTTP request.
 the engine is unaware of HTTP; the engine is unaware of the web
 surface.
 
+## cycle 12d — v1 surface complete
+
+cycle 12d finishes the v1 surface. three additions, all small:
+
+1. **`/status` page** — `GET /runs/:id/status` returns the system
+   status (6 axes + bands + back link). The only place the system
+   becomes visible, per spec decision 4. Austere: no charts, no
+   sparklines, no gradients. The `bandFor` helper is in the
+   surface adapter and mirrors the engine's bands.
+
+2. **deliberate corpus-quote picker** — the v1 surface uses
+   `pickCorpusQuote(preferHref)` at display time, with
+   `preferHref` set to the prior turn's grounding trace. This
+   creates a chain: turn 1's quote is random, turn 2's points
+   to what grounded turn 1, turn 3's to what grounded turn 2, etc.
+   The player can browse the corpus as a knowledge-graph
+   traversal of the run.
+
+3. **wired decision-dock form** — the v1 surface (cycle 12c) was
+   *half-wired*: the server accepted moves but the form was
+   still the v0 placeholder. Cycle 12d wires the form: the
+   textarea and submit button are no longer `disabled`, a
+   small inline `<script>` block defines `polycrisisSubmitMove`
+   that strips trailing blank lines and POSTs JSON. **This is
+   the load-bearing change of cycle 12d** — without it, the v1
+   surface was a server that no client could talk to.
+
+4. **seed run state fields** — both seed runs in `data/seed-runs/`
+   got a `state` field so the `/status` page can render them.
+   Real v1 runs in `data/runs/` get `state` automatically.
+
+## cycle 12d+1 — what's left (advisor interaction, polish)
+
+- the advisor strip in the decision dock is rendered but the
+  buttons are non-functional. wiring the advisor interaction
+  (decision 5) is a follow-up cycle.
+- the corpus-quote picker's forward-pointing chain is a design
+  call. if backward-pointing is preferred, the change is 1 line
+  in `pickQuoteForTurn`.
+- v2 (cycle 13+) is the auth layer + multi-player.
+
 ## file layout
 
 ```
