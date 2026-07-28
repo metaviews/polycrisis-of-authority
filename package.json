@@ -2,17 +2,18 @@
   "name": "polycrisis-of-authority",
   "version": "0.1.0",
   "private": true,
-  "description": "A simulation game where you begin already in power and must govern through a constant stream of overlapping crises. Discord bot surface.",
+  "description": "A simulation game where you begin already in power and must govern through a constant stream of overlapping crises. Three player surfaces: terminal, Discord bot, web.",
   "main": "src/bot/bot.js",
   "scripts": {
     "bot": "node src/bot/bot.js",
     "sim": "node src/sim/interactive.js",
+    "web": "node src/web/server.js",
     "test": "echo \"no test suite yet; see /tmp/hermes-verify-*.sh\" && exit 0"
   },
   "engines": {
     "node": ">=20"
   },
-  "keywords": ["simulation", "policy", "llm", "discord-bot", "edutainment"],
+  "keywords": ["simulation", "policy", "llm", "discord-bot", "edutainment", "web"],
   "author": "Polycrisis orchestrator",
   "license": "UNLICENSED",
   "dependencies": {

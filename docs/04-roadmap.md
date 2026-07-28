@@ -145,13 +145,70 @@ These are named so scope drift can be resisted. Each item names why it's deferre
 - **Production-grade scaling.** MVP-0 is a working artifact for an audience that knows what it is, not a high-traffic public service. Engineering for scale is deferred until the artifact is shaped correctly.
 - **Mobile-first design.** Desktop-first is the assumption for MVP-0. Mobile is deferred until the desktop experience is settled.
 
-## Phases after MVP-0 — sketched, not committed
+## After MVP-0 — cycles 6 through 12 (retrospective)
 
-These are directions, not commitments. Each names the rough shape so future work has somewhere to land, but the phases themselves are not scheduled.
+MVP-0 shipped in late June 2026 with the terminal surface. The work that followed was driven by **Principle 4.4 ("public surfaces wait")** — the surfaces were built one at a time, only after the engine was stable, and each surface was a thin adapter over the same simulation. This section records what was built, not what was planned. The roadmap ahead (auth, multi-player, deployment) is sketched in a separate section below.
+
+### Cycle 6 — Discord bot surface (June 29 – July 4, 2026)
+
+The Discord bot was the second player surface. Seven cycles (6a-6g), each a playable increment, shipped end-to-end. The Discord surface uses the surface-adapter pattern documented in `docs/13-discord-bot-architecture.md`; the engine in `src/sim/` is unchanged. The bot is DM-first (single-player, private), button-driven for advisor and status interactions, and embeds the shareable artifact at end-of-run.
+
+**Cycle 6g (Discord polish) is incomplete** — `/polycrisis end` and identity capture have known issues flagged in `docs/15-discord-bot-cycle-6g.md`. The work was paused in favor of the web surface (cycle 12) because the user (sole player + orchestrator) could play the simulation via terminal or web, and Discord was a "nice to have" surface. Cycle 6g is open work.
+
+### Cycle 7 — Discord walkthrough fixes (July 5, 2026)
+
+Two small follow-up cycles addressing issues found while testing the Discord bot. Documentation: `wiki/prototypes/2026-07-05-cycle-7-walkthrough-fix-1.md` and `wiki/prototypes/2026-07-05-cycle-7-walkthrough-fix-2.md`.
+
+### Cycles 8a-9b — Corpus expansion (July 5-6, 2026)
+
+Four cycles expanding the wiki corpus to ~130 entries (concepts, entities, themes, signals). Driven by the `wiki/proposals/` queue and the orchestrator's review. The cycles:
+
+- **Cycle 8a-extension** — entity corpus closure (4 stubs fleshed out into full entries).
+- **Cycle 8b** — themes corpus expansion (12 fully-fleshed themes).
+- **Cycle 8c** — concepts corpus expansion (18 fully-fleshed concepts).
+- **Cycle 9b** — concepts forward-reference closure (20 most heavily-referenced concepts fleshed out).
+
+Documentation: `docs/17-` through `docs/19-` and `docs/21-`.
+
+### Cycle 9 — Discord run notifications (July 5, 2026)
+
+A small feature added to the Discord bot: when a run starts or ends in any channel the bot can see, it posts a notification embed to a configured channel. Best-effort; never breaks gameplay. Documentation: `wiki/prototypes/2026-07-05-cycle-discord-run-notifications.md`.
+
+### Cycle 10 — Signal filing pipeline (July 5, 2026)
+
+`scripts/wiki-file-signals.js` — a signal-filing script adapted from the parent Metaviews project. Reads parent source signals, parses YAML frontmatter, emits the polycrisis wiki format matching existing entries, writes to `wiki/signals/`. Documentation: `docs/22-cycle-10-signal-filing-pipeline.md`.
+
+### Cycle 11 — Pacing and help-mode (July 12, 2026)
+
+Two design improvements: (1) the world generator's default per-turn pacing is now multi-sub-beat (each turn can produce a `sub_turns` array of narrative beats, not just one); (2) the help-mode affordance (`?` and `?? <question>`) lets the player ask the simulation to explain its state, the current crisis, or its own design. Both are TTY-only in v1; the v1 web surface doesn't have help affordances yet. Documentation: `docs/23-cycle-11-pacing-and-help.md`.
+
+### Cycle 12 — Web surface (June 26 – July 28, 2026)
+
+The web surface is the third player surface. Five cycles (12a through 12e) shipped end-to-end. **Spec:** `docs/24-web-architecture.md`. **Cycle summary:** `docs/25-web-surface-cycles.md`. The engine got one additive change in cycle 12c: `stepTurn` and `pickCrisis` were extracted from `runLoop` so the v1 surface could call the engine per HTTP request. Otherwise, `src/sim/` is unchanged.
+
+**The v1 web surface is now feature-complete per the spec.** All 5 decisions (auth, corpus, post-game, trajectory, advisor) landed across cycles 12b-12e. The web surface ships without bearer-token auth (v2 work); the run URL is the access, bookmarkable for resumability.
+
+### Why no formal "Phase 6" through "Phase 11"?
+
+The original roadmap had Phases 1-5 ending at "MVP-0 launch." The post-MVP-0 work was *not* pre-planned as numbered phases because the project's Principle 4.1 ("build and tend") and Principle 4.4 ("public surfaces wait") governed the order: tend the corpus when it needs tending, build the next surface when the engine is stable, document each cycle as it ships. Cycles emerged from the work, not from a phase plan.
+
+A new orchestrator reading this document should not infer a missed phase plan. The cycles are recorded in `wiki/log.md` (the institutional memory) and `wiki/prototypes/` (the per-cycle details). The roadmap ahead — the work that is *not yet done* — is sketched in the next section.
+
+## Roadmap ahead — sketched, not committed
+
+These are directions, not commitments. Each names the rough shape so future work has somewhere to land, but the cycles themselves are not scheduled.
+
+**v2 of the web surface (cycle 13+).** Bearer-token auth + multi-player. The v1 surface ships without auth; the run URL is the access. v2 would add a sqlite-backed users table, a token-cookie issued on first run, and verification on subsequent requests. v2 is the natural next iteration of the web surface. It requires `npm install` for sqlite and a new dep, which has been gated by the user during cycle 12 (avoiding version drift and dependency churn).
+
+**Discord bot polish (cycle 6g).** `/polycrisis end` and identity capture have known issues from the cycle 6g walkthrough. The Discord surface is functional but unfinished. Completion is small and isolated.
+
+**Deployment.** The deployment spec is at `docs/16-deployment.md` (pm2 + sqlite + monitoring). It was revised in July 2026 to be more user-friendly (XDG-style paths, no `sudo`, no system-wide installs) but has not been executed. The web surface can be deployed as a single node process to a $5 VPS or fly.io.
+
+**Wiki continuing expansion.** The `wiki/proposals/` queue has 4 pending items from May/June 2026. The orchestrator's wiki curation activity (per `docs/03-orchestrator-role.md`) tends these. New proposals come in as the Metaviews archive publishes new content.
 
 **MVP-1.** Wiki expansion with a larger corpus (100+ entries), a second policy domain as a parallel case study, and persistence between runs (player profiles, comparative scoring). The case-study framing would extend to "how does the same simulation read across policy domains?" — a stronger claim than MVP-0's.
 
-**MVP-2.** A second player surface: a spectator or co-governor mode where one player observes another and the advisor function operates in dialogue. Multiplayer would require careful design to preserve the literacy claim (the advisor cast would need to expand to accommodate dialogue partners).
+**MVP-2.** A second player surface mode where one player observes another and the advisor function operates in dialogue. Multiplayer would require careful design to preserve the literacy claim (the advisor cast would need to expand to accommodate dialogue partners).
 
 **Longer-term.** The project's wiki, if it grows enough, becomes a citable research artifact in its own right — a curated, dated, traceable knowledge base for AI policy analysis. The game is then a demonstration surface for the wiki; the wiki is the primary contribution. This is the trajectory of the parent Metaviews project, and Polycrisis may follow a similar arc.
 
@@ -162,3 +219,4 @@ These are directions, not commitments. Each names the rough shape so future work
 - The orchestrator role (`docs/03-orchestrator-role.md`) — what the orchestrator's day-to-day work is.
 - The corpus synthesis (`docs/01-corpus-synthesis.md`) — what the corpus gives us, what the four failure patterns are, what the actor cast looks like.
 - The parent Metaviews project's structure (`../metaviews-website/CLAUDE.md`) — the wiki discipline and operator tooling patterns to inherit.
+- The wiki log (`wiki/log.md`) — the institutional memory of what was actually built, cycle by cycle.
