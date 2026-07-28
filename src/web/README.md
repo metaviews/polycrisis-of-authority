@@ -133,6 +133,36 @@ the v1 surface is now feature-complete per the spec. 5 decisions
 (auth, corpus, post-game, trajectory, advisor) all landed. v2
 (cycle 13+) is the auth layer + multi-player.
 
+## cycle 12e — turn-1 placeholder fix
+
+cycle 12e fixes a UX gap: on turn 1, the seed crisis has placeholder
+`pressure: "(LLM-generated)"` and `decision_point: "(LLM-generated)"`
+strings. the engine elaborates these after the player's first move,
+but on turn 1 the player never sees the elaboration. the surface
+adapter substitutes per-failure-pattern questions and pressures:
+
+- `upstream-embedding` → "How does the regime respond to a
+  capability release that outpaces its evaluation capacity?"
+- `compute-capability-escape` → "How does the regime address a lab
+  whose capabilities exceed disclosed evaluation thresholds?"
+- `legitimacy-erosion` → "How does the regime rebuild trust in the
+  safety institutions whose credibility has eroded?"
+- `memetic-narrative-capture` → "How does the regime counter a
+  coordinated narrative that distorts the public record?"
+- (unknown) → "How do you respond to this situation?"
+
+each pattern has a per-pattern pressure (1-2 sentences explaining
+why the question is being asked). the substitution is case-
+insensitive on the placeholder match. real (non-placeholder)
+strings pass through unchanged.
+
+the substitution happens in two places: `renderTurnCard` (per-turn
+card in the chat-thread, so prior turns also get the fix) and
+`renderDecisionDock` (the decision dock at the bottom of the page).
+
+no engine changes. no LLM calls. 0 cost beyond the surface
+adapter code.
+
 ## file layout
 
 ```

@@ -96,6 +96,64 @@ function renderRunMeta({ run, isActive, currentTurn }) {
 }
 
 // ---------------------------------------------------------------
+// per-failure-pattern decision questions (cycle 12e)
+//
+// the engine's seed crises have placeholder pressure and decision_point
+// fields ("(LLM-generated)"). the LLM elaborates them after the player's
+// first move, but on turn 1 the player never sees the elaboration —
+// they'd see the placeholder text in the decision dock. this is a
+// cycle 12e fix: substitute a per-failure-pattern question so the
+// player sees a real, specific decision to make on turn 1.
+//
+// the questions are surface adapter data, not engine data. the engine
+// produces a `failure_pattern` string; the surface adapter maps it
+// to a question. the engine stays unchanged.
+// ---------------------------------------------------------------
+
+const PATTERN_QUESTIONS = {
+  'upstream-embedding': 'How does the regime respond to a capability release that outpaces its evaluation capacity?',
+  'compute-capability-escape': 'How does the regime address a lab whose capabilities exceed disclosed evaluation thresholds?',
+  'legitimacy-erosion': 'How does the regime rebuild trust in the safety institutions whose credibility has eroded?',
+  'memetic-narrative-capture': 'How does the regime counter a coordinated narrative that distorts the public record?',
+};
+
+const PATTERN_PRESSURES = {
+  'upstream-embedding': "The lab's capabilities have outpaced the regulator's evaluation capacity, and the next capability release is announced before the prior review is complete.",
+  'compute-capability-escape': "The disclosed evaluation thresholds have been exceeded in production, and the gap is widening with each capability release.",
+  'legitimacy-erosion': "Public trust in the safety institutions has eroded, and the regime's evaluation process is no longer seen as credible by the press, the public, or the labs.",
+  'memetic-narrative-capture': "A coordinated narrative has distorted the public record, and the regime's response is being interpreted through that frame before any policy action is taken.",
+};
+
+const FALLBACK_QUESTION = 'How do you respond to this situation?';
+const FALLBACK_PRESSURE = 'The current situation demands a response, and the regime has limited time to act.';
+const PLACEHOLDER_PATTERN = /\(LLM-generated\)/i;
+
+function resolveDecisionQuestion(decisionQuestion, failurePattern) {
+  // if the engine produced a real question (not a placeholder), use it
+  if (decisionQuestion && !PLACEHOLDER_PATTERN.test(decisionQuestion)) {
+    return decisionQuestion;
+  }
+  // placeholder: substitute a per-failure-pattern question
+  if (failurePattern && PATTERN_QUESTIONS[failurePattern]) {
+    return PATTERN_QUESTIONS[failurePattern];
+  }
+  // unknown pattern: use the generic fallback
+  return FALLBACK_QUESTION;
+}
+
+function resolveDecisionPressure(pressure, failurePattern) {
+  // same logic: substitute a per-failure-pattern pressure if the engine
+  // produced a placeholder.
+  if (pressure && !PLACEHOLDER_PATTERN.test(pressure)) {
+    return pressure;
+  }
+  if (failurePattern && PATTERN_PRESSURES[failurePattern]) {
+    return PATTERN_PRESSURES[failurePattern];
+  }
+  return FALLBACK_PRESSURE;
+}
+
+// ---------------------------------------------------------------
 // turn card — the B chat-thread layout. Prior turns get the
 // `turn-prior` class (muted); current turn is full-strength.
 // ---------------------------------------------------------------
@@ -120,8 +178,8 @@ function renderTurnCard({ turn, isPrior, corpusQuote }) {
     <div class="situation">
       <p>${inlineMarkdown(turn.situation || '')}</p>
     </div>
-    ${turn.pressure ? `<div class="pressure"><p>${inlineMarkdown(turn.pressure)}</p></div>` : ''}
-    ${turn.decision_question ? `<p style="margin-top: 1rem; font-style: italic; color: var(--muted);">${inlineMarkdown(turn.decision_question)}</p>` : ''}
+    ${turn.pressure ? `<div class="pressure"><p>${inlineMarkdown(resolveDecisionPressure(turn.pressure, turn.crisis_kind))}</p></div>` : ''}
+    ${turn.decision_question ? `<p style="margin-top: 1rem; font-style: italic; color: var(--muted);">${inlineMarkdown(resolveDecisionQuestion(turn.decision_question, turn.crisis_kind))}</p>` : ''}
     ${corpus}
   </section>`;
 }
@@ -149,6 +207,10 @@ function renderEndOfRun({ run, endProse }) {
 function renderDecisionDock({ currentTurn, runId, advisorRead, consultedVoice }) {
   if (!currentTurn || !currentTurn.decision_question) return '';
   if (!runId) return '';
+
+  // resolve the decision question (cycle 12e): if the engine produced
+  // a placeholder, substitute a per-failure-pattern question.
+  const resolvedQuestion = resolveDecisionQuestion(currentTurn.decision_question, currentTurn.crisis_kind);
 
   // the read area shows the most recent consult (if any), or a hint.
   // consultedVoice is the voice the player has clicked (if any) for
@@ -188,7 +250,7 @@ function renderDecisionDock({ currentTurn, runId, advisorRead, consultedVoice })
 
   return `<div class="decision-dock">
     <div class="decision-dock-inner">
-      <p class="decision-question">${inlineMarkdown(currentTurn.decision_question)}</p>
+      <p class="decision-question">${inlineMarkdown(resolvedQuestion)}</p>
       <form id="move-form" onsubmit="return polycrisisSubmitMove(event, '${escapeHtml(runId)}');">
         <div class="decision-row">
           <textarea id="move-text" name="text" placeholder=""></textarea>
@@ -886,6 +948,10 @@ module.exports = {
   escapeHtml,
   inlineMarkdown,
   bandFor,                 // cycle 12d: matches engine's bandFor
+  resolveDecisionQuestion, // cycle 12e: per-failure-pattern question substitution
+  resolveDecisionPressure, // cycle 12e: per-failure-pattern pressure substitution
+  PATTERN_QUESTIONS,       // cycle 12e: per-pattern question map
+  PATTERN_PRESSURES,       // cycle 12e: per-pattern pressure map
   PALETTE,
   FONTS,
 };
