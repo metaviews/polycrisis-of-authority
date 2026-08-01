@@ -191,58 +191,80 @@ Primary candidates, drawn from `wiki/themes/`:
     exhaustion
 14. **labor-displacement-and-class** — departure, room left behind
 
-### Prototype set (4 videos, August 2026)
+### Prototype 4 outcome (August 2026) — superseded
 
-Selected to span the atmospheric range. Substrate vs surface,
-scale vs small, machinery vs attention.
+A 5-second atmospheric vignette ("civil-society-accountability-
+infrastructure" theme: empty office at end of day) was generated
+against `minimax/hailuo-3` at 2K/16:9. Render was technically
+correct (modest office, lamplight, slow camera drift, ambient
+sound, 2560x1440 h264 + aac, ~5.17s).
 
-**1. compute-as-geopolitics**
+**User assessment: cultural fit failed.** The render landed as
+"boring office has little to do with a polycrisis." The
+atmospheric-vignettes-by-theme direction is **superseded**.
 
-Vast datacenter interior at night. Rows of server racks receding
-into distance. Cool blue-white LED glow from equipment status
-panels. Single human figure seen from above, walking slowly
-between the rows, dwarfed by scale. Camera holds wide, then
-drifts forward at walking pace over fifteen seconds. Hum of
-cooling systems and low electrical drone fills the room.
-Cinematic, contemplative, no text, no logos.
+Two reasons recorded for the failure:
 
-**2. transparency-and-auditability**
+1. The prompt asked h3 to be an art-film camera; h3 is a
+   commercial-grade multimodal model. Asking it to render
+   still-cinema atmosphere underuses its distinctive capability
+   (text and brand rendering) and pushes it toward defaults it
+   doesn't do well.
+2. The relationship between corpus and video was the wrong way
+   around. The prompts were *about* the corpus (its themes, its
+   weather) rather than *using* the corpus to drive text- and
+   brand-faithful rendering of the project itself.
 
-Empty laboratory bench under a single harsh overhead light.
-Glassware and printed documents arranged with care. A gloved
-hand enters frame from the right and slowly rotates a sheet of
-paper to read it under the light. No faces visible. Camera
-holds still for the first half, then drifts down to a close
-of the paper's surface — the text is illegible, but the
-texture of inspection is the subject. Quiet room tone, faint
-mechanical ventilation. Subdued palette, clinical.
+The successful artifact from this prototype is the pipeline:
+`scripts/h3-generate.sh`, the prompt-file convention, and the
+`assets/videos/prototype-2026-08/` layout. These survive.
 
-**3. synthetic-media-and-information-environment**
+### Prototype 5 (August 2026) — opening title sequence
 
-A long continuous shot of a city street seen through a screen
-of rain on glass. Reflections of passing cars, signage, and
-pedestrians smear and recombine on the wet surface. The camera
-is stationary inside, looking out. Sound is the rain against
-the glass plus distant traffic muffled to almost-nothing. The
-world on the other side of the glass is real but unrecoverable
-as information; the glass is the subject.
+Replaces the atmospheric-vignette direction. Single video, plays
+once at run start, sets the stage and the tone.
 
-**4. civil-society-accountability-infrastructure**
+**Beats (committed to `prompts/polycrisis-of-authority-opening.md`):**
 
-A modest office at the end of a working day. Three or four
-people at separate desks, mostly empty now. Lamplight. Stacks
-of paper, a whiteboard with handwritten notes, a wall of
-reports pinned up. One person remains, writing slowly at a
-desk by the window. Outside the window: a city going dark.
-Camera holds on the empty desks for a few seconds, then drifts
-to the remaining worker, then to the window. Quiet office
-tone — chair creak, distant plumbing, the soft sound of pen
-on paper. Unhurried, attentive, small.
+1. **Title** — "polycrisis of authority" rendered in serif type.
+2. **Description** — one-line gloss of the game.
+3. **Instruction** — one-line how-to-play.
 
-These four prompts are queued for generation against
-`minimax/hailuo-3` via OpenRouter. After viewing the results,
-decide whether to expand to the full 14-category set or
-re-prompt with adjusted atmospheric register.
+**Locked copy:**
+
+- description: "you govern; the world speaks back through crisis,
+  pressure, and the patience of those you lead."
+- instruction: "read the world. respond with care."
+
+**Render params:** duration 12s, aspect 16:9, resolution 2K,
+audio on, model `minimax/hailuo-3`.
+
+**Register:** wu-wei. Taught-as-frame, not literal-cinema.
+Muted ink-wash palette, generous empty space, slow fade-in
+rather than animation, no figures, no movement other than type
+and a barely-perceptible camera breath. Ambient sound (faint
+wind, distant water, brush on paper). No music, no voice, no
+logos. "Less like a movie title card, more like the opening
+page of a book one is about to enter."
+
+**Subject-scope caveat:** the project's current gameplay
+focuses on AI policy; future additions will address climate,
+wealth concentration, and others. The description copy must
+read as the whole-polycrisis idea, not AI-only. The current
+description passes this test (no AI-specific language).
+
+**Open items before render:**
+
+- Review the description and instruction copy. Lock or revise.
+- Confirm title casing. Project uses lowercase ("polycrisis of
+  authority") per case-study/social-posts.md and the public
+  README; package.json kebab-case is `polycrisis-of-authority`.
+- Render duration: 12s is the revised prior (was 10s). One more
+  second per beat buys text-rendering stability given h3's
+  history of misspelling at speed.
+
+These are not yet committed — pending your review of the copy,
+casing, and duration.
 
 ## What this doc is not
 
