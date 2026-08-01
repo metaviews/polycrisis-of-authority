@@ -95,11 +95,38 @@ if [ -z "$PROMPT_TEXT" ] || [ "$(echo -n "$PROMPT_TEXT" | tr -d '[:space:]' | wc
   exit 1
 fi
 
-# ── render params (override via env if needed) ──────────────────
-DURATION="${H3_DURATION:-5}"
-ASPECT_RATIO="${H3_ASPECT_RATIO:-16:9}"
-RESOLUTION="${H3_RESOLUTION:-2K}"
-GENERATE_AUDIO="${H3_GENERATE_AUDIO:-true}"
+# ── render params (prompt file is source of truth, env can override) ──
+# Read bullet-list values from the "## Render params" section if present.
+# Pattern: lines like `- duration: 12` or `- aspect_ratio: 16:9`.
+# Inline comments after a value (e.g. `12 (revised from 10)`) are
+# stripped — only the value before any `(` or end-of-line is kept.
+parse_param() {
+  local key="$1"
+  awk -v k="$1" '
+    BEGIN { in_section = 0 }
+    /^## Render params/ { in_section = 1; next }
+    /^## /             { if (in_section) { in_section = 0 } }
+    in_section && index($0, "- " k ":") == 1 {
+      line = $0
+      sub("^[[:space:]]*-[[:space:]]+" k ":[[:space:]]*", "", line)
+      p = index(line, "(")
+      if (p > 0) line = substr(line, 1, p - 1)
+      sub(/[[:space:]]+$/, "", line)
+      print line
+      exit
+    }
+  ' "$2"
+}
+
+FILE_DURATION=$(parse_param "duration" "$PROMPT_FILE")
+FILE_ASPECT=$(parse_param "aspect_ratio" "$PROMPT_FILE")
+FILE_RESOLUTION=$(parse_param "resolution" "$PROMPT_FILE")
+FILE_AUDIO=$(parse_param "generate_audio" "$PROMPT_FILE")
+
+DURATION="${H3_DURATION:-${FILE_DURATION:-5}}"
+ASPECT_RATIO="${H3_ASPECT_RATIO:-${FILE_ASPECT:-16:9}}"
+RESOLUTION="${H3_RESOLUTION:-${FILE_RESOLUTION:-2K}}"
+GENERATE_AUDIO="${H3_GENERATE_AUDIO:-${FILE_AUDIO:-true}}"
 MODEL="${H3_MODEL:-minimax/hailuo-3}"
 
 # ── submit ──────────────────────────────────────────────────────
@@ -116,11 +143,8 @@ echo
 PAYLOAD=$(cat <<EOF
 {
   "model": "$MODEL",
-  "prompt": $(printf '%s' "$PROMPT_TEXT" | python3 <<'PYEOF'
-import sys, json
-print(json.dumps(sys.stdin.read()))
-PYEOF
-),
+  "prompt": $(printf '%s' "$PROMPT_TEXT" | python3 -c "import sys, json; print(json.dumps(sys.stdin.read().replace(chr(10), ' '), ensure_ascii=False))"),
+  "content": [{"type": "text", "text": $(printf '%s' "$PROMPT_TEXT" | python3 -c "import sys, json; print(json.dumps(sys.stdin.read().replace(chr(10), ' '), ensure_ascii=False))")}],
   "duration": $DURATION,
   "aspect_ratio": "$ASPECT_RATIO",
   "resolution": "$RESOLUTION",

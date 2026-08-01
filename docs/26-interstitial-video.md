@@ -255,16 +255,74 @@ description passes this test (no AI-specific language).
 
 **Open items before render:**
 
-- Review the description and instruction copy. Lock or revise.
-- Confirm title casing. Project uses lowercase ("polycrisis of
-  authority") per case-study/social-posts.md and the public
-  README; package.json kebab-case is `polycrisis-of-authority`.
-- Render duration: 12s is the revised prior (was 10s). One more
-  second per beat buys text-rendering stability given h3's
-  history of misspelling at speed.
+- ~~Review the description and instruction copy. Lock or revise.~~
+  Locked (user approval).
+- ~~Confirm title casing.~~ Confirmed lowercase per case-study/social-posts.md.
+- ~~Render duration.~~ 12s (then 5s × 3 beats, see below).
 
 These are not yet committed — pending your review of the copy,
 casing, and duration.
+
+### Render and stitch — what actually shipped (August 2026)
+
+Three separate 5-second renders at 2K/16:9 (h3's minimum
+duration is 5s, not 4s — discovered when first 4s render was
+rejected with HTTP 400). Stitches into a 12.5s opening.
+
+- **Beat 1 (title)** — extracted from a 12s diagnostic render
+  of `prompts/polycrisis-of-authority-opening.md`. The diagnostic
+  was originally sent as a schema test (5 beats × 12s); beat 1's
+  cleanest 4s window was at 3s-7s of the diagnostic. Schema
+  discovered: must send both `prompt` AND
+  `content: [{type: "text", text: "..."}]` with literal UTF-8
+  characters and flattened newlines (no `\n` escapes inside the
+  string values — h3's content-array routing fails on those).
+- **Beat 2 (description)** — fresh 5s render via inline curl
+  (job id `oVhhT70zY6gCyWtPvoFH`, cost $0.64). Extracted
+  0s-4s.
+- **Beat 3 (instruction)** — fresh 5s render via inline curl
+  (job id `W3u6ahojMMyD36oYDI9k`, cost $0.64). Extracted
+  0s-4s.
+
+**Stitch:** ffmpeg concat with 0.5s `xfade` + `acrossfade`
+between beats 2 and 3 (parchment-dominant transition, both
+texts briefly visible during the overlap). Hard cut at
+beat 1→2 — beat 1's extracted window has the title held
+throughout, beat 2 starts with parchment only, so the seam
+reads naturally.
+
+**Final asset:**
+`assets/videos/prototype-2026-08/polycrisis-of-authority-opening.mp4`
+(~12.5s, 2560×1440, h264+aac, ~16.7MB). Gitignored; produced
+from committed prompts + script.
+
+### Scripts and prompts that shipped this cycle
+
+- `scripts/h3-generate.sh` — submit/poll/download wrapper for
+  h3 via OpenRouter. Prompt file is source of truth for
+  render params; env vars override. **Important gotchas
+  captured in the script's payload construction:** literal UTF-8
+  (no `\u2014` escapes), flattened newlines (no `\n` inside
+  string values), and use `-c "..."` rather than `<<'EOF'`
+  heredocs for python — heredocs inside `$()` redirect stdin
+  in a way that empties the python script's input.
+- `prompts/civil-society-accountability-infrastructure.md` —
+  failed prototype 4, kept for the record.
+- `prompts/polycrisis-of-authority-opening.md` — original
+  3-beat prompt superseded by per-beat prompts.
+- `prompts/polycrisis-of-authority-opening-beat-2-description.md`
+- `prompts/polycrisis-of-authority-opening-beat-3-instruction.md`
+
+### Session spend
+
+- Prototype 4 (office render): ~$0.65
+- Diagnostic render (12s): $1.54
+- Beat 2: $0.64
+- Beat 3: $0.64
+- **Total: ~$3.48**
+
+Future renders through the script should be cheaper — no
+diagnostic render needed, no schema discovery needed.
 
 ## What this doc is not
 
