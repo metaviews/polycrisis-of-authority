@@ -163,6 +163,56 @@ card in the chat-thread, so prior turns also get the fix) and
 no engine changes. no LLM calls. 0 cost beyond the surface
 adapter code.
 
+## cycle 13 — opening title integration
+
+cycle 13 wires the opening title sequence (prototype 5, August 2026)
+into the web surface at the boundary moments of the run: cold-start
+and end-of-run.
+
+- **the helper** — `renderOpeningTitle()` in `src/web/surface.js`.
+  Emits an inline `<video autoplay muted playsinline loop>` with the
+  prototype asset as its `src`, plus a small mono uppercase "SKIP"
+  link wired to an inline `polycrisisSkipOpening()` that removes the
+  element on click. The helper carries its own `<style>` block inside
+  the element, matching the precedent set by cycles 12c-12e inline
+  style blocks. Self-contained: `renderPageShell` doesn't need to
+  know about it.
+- **the placement** — `renderPageShell` gained an optional `preMeta`
+  field. When present, it's rendered *before* `runMeta` inside
+  `<div class="page">`, so the opening title becomes the first chrome
+  read on the page (above the run-meta header). `renderRunPage`
+  passes `preMeta = !isActive ? renderOpeningTitle() : ''` — ended
+  runs only. `renderColdStart` passes `preMeta: renderOpeningTitle()`
+  unconditionally.
+- **the route** — `GET /assets/videos/...` with `handleAssets`
+  handler. Whitelist-only: only serves files under `assets/` that
+  exist on disk and end in `.mp4`. Path traversal attempts are
+  rejected with 404 before any `fs` call. Content-type `video/mp4`.
+  Cache-control `public, max-age=3600`.
+- **where it plays.** Cold-start (`GET /`) and ended run pages
+  (`GET /runs/:id` when `state='ended'`). Not on active runs (the
+  player is mid-play, not arriving). Not on `/status` (subordinate
+  to the run page). Not on `/runs` (JSON, not a page).
+- **no engine changes.** Cycle 13 is *display + route* only.
+- **audio.** The video is `muted` in the embed. The source has
+  ambient audio (faint wind, distant water, brush on paper) — the
+  embed can be revised if the audio stance is revisited.
+- **verification.** `/tmp/hermes-verify-13-opening.sh` — 25 checks
+  across 8 categories (file existence, no engine coupling, surface
+  renders correctly, skip link present + visible, aesthetic
+  compliance, asset route + path traversal, live HTTP, no
+  regressions).
+
+## cycle log
+
+- cycle 12a: three real HTML direction-board mockups (A, B, C). user picked B. `direction-approved.md` filed.
+- cycle 12b: v0 read-only surface. 4 routes, 2 seed runs, no engine coupling.
+- cycle 12c: v1 interactive surface (run-start + move submission + engine per-turn API).
+- cycle 12d: corpus-quote footer + `/status` + post-game report integration.
+- cycle 12d+1: advisor interaction wired (engine `consult()` exposed via the dock).
+- cycle 12e: per-failure-pattern question and pressure substitution for turn-1 placeholder.
+- cycle 13: opening title integration (cold-start + end-of-run only, no engine changes).
+
 ## file layout
 
 ```

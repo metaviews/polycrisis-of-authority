@@ -96,6 +96,77 @@ function renderRunMeta({ run, isActive, currentTurn }) {
 }
 
 // ---------------------------------------------------------------
+// opening title (cycle 13)
+//
+// the opening title sequence (assets/videos/prototype-2026-08/
+// polycrisis-of-authority-opening.mp4, ~12.5s, 2K) is played at the
+// boundary moments of the run: cold-start and end-of-run. not on
+// active runs (the player is mid-play, not arriving) and not on
+// /status (subordinate to the run page).
+//
+// the video is autoplay-muted with a small "skip" link visible from
+// the start. autoplay-muted works without a user gesture on modern
+// browsers; if a browser blocks it, the page is still readable.
+//
+// the inline <style> block lives inside this element (rather than
+// in the page shell) so this helper is self-contained — the page
+// shell doesn't need to know about it. matches the precedent set
+// by the cycle 12c-12e inline <style> blocks elsewhere in this file.
+// ---------------------------------------------------------------
+
+const OPENING_VIDEO_SRC = '/assets/videos/prototype-2026-08/polycrisis-of-authority-opening.mp4';
+
+function renderOpeningTitle() {
+  return `<div class="opening-title">
+    <style>
+      .opening-title {
+        position: relative;
+        max-width: 68ch;
+        margin: 0 auto 2rem;
+        padding: 1.5rem 1.5rem 0;
+      }
+      .opening-title video {
+        display: block;
+        width: 100%;
+        height: auto;
+        border-bottom: 1px solid var(--rule);
+      }
+      .opening-title .skip-link {
+        position: absolute;
+        top: 1.7rem;
+        right: 1.7rem;
+        font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        font-size: 0.7em;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        background: rgba(251, 250, 247, 0.85);
+        padding: 0.15rem 0.4rem;
+        cursor: pointer;
+      }
+      .opening-title .skip-link:hover { color: var(--ink); }
+    </style>
+    <video autoplay muted playsinline loop preload="auto" aria-label="Opening title">
+      <source src="${OPENING_VIDEO_SRC}" type="video/mp4">
+    </video>
+    <a href="#" class="skip-link" onclick="polycrisisSkipOpening(event); return false;">skip</a>
+  </div>
+  <script>
+    // cycle 13: skip-link removes the opening title element. the video is
+    // already autoplaying; this just hides it. no state, no animation,
+    // matches the austere register.
+    function polycrisisSkipOpening(event) {
+      if (event && event.preventDefault) event.preventDefault();
+      var el = document.querySelector('.opening-title');
+      if (el) el.parentNode.removeChild(el);
+      return false;
+    }
+  </script>`;
+}
+
+// ---------------------------------------------------------------
 // per-failure-pattern decision questions (cycle 12e)
 //
 // the engine's seed crises have placeholder pressure and decision_point
@@ -348,7 +419,7 @@ function renderDecisionDock({ currentTurn, runId, advisorRead, consultedVoice })
 // the page shell — <html>, <head>, CSS, body
 // ---------------------------------------------------------------
 
-function renderPageShell({ title, body, runMeta, isActive }) {
+function renderPageShell({ title, body, runMeta, isActive, preMeta }) {
   const meta = runMeta ? renderRunMeta({ run: runMeta.run, isActive, currentTurn: runMeta.currentTurn }) : '';
   const mockupBadge = process.env.POLYCRISIS_WEB_MOCKUP_BADGE ? `<div class="mockup-badge">${escapeHtml(process.env.POLYCRISIS_WEB_MOCKUP_BADGE)}</div>` : '';
 
@@ -621,6 +692,7 @@ main { animation: fadein 0.2s ease-out; }
 </head>
 <body>
 <div class="page">
+${preMeta || ''}
 ${meta}
 <main>
 ${body}
@@ -662,11 +734,17 @@ function renderRunPage({ run, turns, corpusQuotes, isActive, endProse, advisorRe
   const body = cards + renderEndOfRun({ run, endProse });
   const dock = isActive ? renderDecisionDock({ currentTurn, runId: run.run_id, advisorRead, consultedVoice }) : '';
 
+  // cycle 13: opening title on end-of-run only. it sits ABOVE the
+  // run-meta header, so we pass it as preMeta (rendered before meta
+  // inside the page wrapper, not inside <main>).
+  const preMeta = !isActive ? renderOpeningTitle() : '';
+
   return renderPageShell({
     title: `Run ${run.run_id} — Polycrisis of Authority`,
     body,
     runMeta: { run, currentTurn: currentTurnNum },
     isActive,
+    preMeta,
   }) + dock;
 }
 
@@ -903,6 +981,7 @@ function renderColdStart({ runs, simulation }) {
     body,
     runMeta: null,
     isActive: false,
+    preMeta: renderOpeningTitle(),
   });
 }
 
@@ -944,6 +1023,8 @@ module.exports = {
   renderColdStart,
   renderStatusPage,        // cycle 12d: /status page
   renderArtifact,
+  renderOpeningTitle,       // cycle 13: opening title sequence
+  OPENING_VIDEO_SRC,        // cycle 13: video asset path (for verifier)
   // export helpers for downstream use
   escapeHtml,
   inlineMarkdown,

@@ -173,6 +173,54 @@ function send404(res, msg = 'not found') {
 }
 
 // ---------------------------------------------------------------
+// static asset route (cycle 13)
+//
+// serves files under assets/videos/ — currently just the prototype
+// opening title. whitelist-only: only serves files under
+// ROOT_DIR/assets/videos/ that exist on disk and end in .mp4.
+// path traversal attempts (.., encoded forms, absolute paths) are
+// rejected with 404 before any fs call.
+//
+// why no static middleware: the surface is small (one mp4) and a
+// dedicated route keeps the dependency footprint at zero. if more
+// assets accumulate, this becomes a candidate for a real static
+// root in cycle 14+.
+// ---------------------------------------------------------------
+
+const ASSETS_ROOT = path.join(ROOT_DIR, 'assets');
+const ASSETS_WHITELEXT = new Set(['.mp4']);
+
+function handleAssets(req, res, urlPath) {
+  // urlPath is the part after /assets/. strip leading slashes.
+  const rel = urlPath.replace(/^\/+/, '');
+  // reject any '..' or absolute path component — defense in depth,
+  // before any fs call.
+  if (!rel || rel.includes('..') || path.isAbsolute(rel)) {
+    return send404(res, 'asset not found');
+  }
+  const abs = path.join(ASSETS_ROOT, rel);
+  // resolve and verify the resolved path is still under ASSETS_ROOT
+  const resolved = path.resolve(abs);
+  if (!resolved.startsWith(path.resolve(ASSETS_ROOT) + path.sep)) {
+    return send404(res, 'asset not found');
+  }
+  if (!fs.existsSync(resolved)) return send404(res, 'asset not found');
+  const ext = path.extname(resolved).toLowerCase();
+  if (!ASSETS_WHITELEXT.has(ext)) return send404(res, 'asset not found');
+
+  const stat = fs.statSync(resolved);
+  if (!stat.isFile()) return send404(res, 'asset not found');
+
+  const type = ext === '.mp4' ? 'video/mp4' : 'application/octet-stream';
+  res.writeHead(200, {
+    'content-type': type,
+    'content-length': stat.size,
+    'cache-control': 'public, max-age=3600',
+  });
+  fs.createReadStream(resolved).pipe(res);
+}
+
+// ---------------------------------------------------------------
 // deliberate corpus-quote picker (cycle 12d)
 //
 // uses the project's pickCorpusQuote (cycle 5e) at display time, with
@@ -921,6 +969,10 @@ async function route(req, res) {
   if (statusMatch) {
     return handleRunStatus(req, res, statusMatch[1]);
   }
+  // cycle 13: static asset route (currently just the opening title video)
+  if (pathname.startsWith('/assets/')) {
+    return handleAssets(req, res, pathname.slice('/assets'.length));
+  }
   send404(res, `no route for ${pathname}`);
 }
 
@@ -939,7 +991,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, HOST, () => {
   const all = listAllRuns();
-  console.log(`[web] polycrisis v1 surface (cycle 12c)`);
+  console.log(`[web] polycrisis v1 surface (cycle 13 — opening title)`);
   console.log(`[web] listening on http://${HOST}:${PORT}`);
   console.log(`[web] routes:`);
   console.log(`[web]   GET  /                     cold-start`);
@@ -947,6 +999,7 @@ server.listen(PORT, HOST, () => {
   console.log(`[web]   GET  /runs/:id             run page (B chat-thread layout)`);
   console.log(`[web]   GET  /runs/:id/report      post-game report (alias)`);
   console.log(`[web]   GET  /runs/:id/status      system status (6 axes, hidden during play)`);
+  console.log(`[web]   GET  /assets/videos/...    static asset route (cycle 13 — opening title video)`);
   console.log(`[web]   POST /runs                 start a new run`);
   console.log(`[web]   POST /runs/:id/move        submit a move`);
   console.log(`[web]   POST /runs/:id/advisor     consult an advisor (corpus-grounded read)`);

@@ -344,3 +344,22 @@ Working sequence as of writing:
    the prototype.
 5. Implement runtime selection (separate cycle doc).
 6. Wire into TUI loop. Verify with `/tmp/hermes-verify-NN.sh`.
+
+### Sequence update — cycle 13 (August 2026)
+
+Cycle 13 (web opening title integration) closes step 5 for the
+*opening title* specifically: the prototype 5 artifact is now
+served by `GET /assets/videos/...` and rendered by `renderOpeningTitle()`
+on the cold-start and end-of-run pages of the web surface.
+`/tmp/hermes-verify-13-opening.sh` is the verifier. See
+`wiki/prototypes/2026-08-01-cycle-13-opening-title-integration.md`
+and `wiki/log.md` (2026-08-01 entry).
+
+Step 6 (wire into TUI loop) is not addressed by cycle 13 — the
+opening title is currently a web-only consumer. When the terminal
+or discord surface wants the same opening, that's a separate cycle.
+
+Between-turns interstitials (the original step 5 target) is still
+[open]: cardinality, runtime selection logic, asset layout. The
+between-turns direction was deferred after prototype 4's
+atmospheric-vignette direction failed cultural fit.
