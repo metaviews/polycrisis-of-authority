@@ -17,5 +17,9 @@ bot.db-journal
 bot.db-wal
 bot.db-shm
 
-# generated video assets (h3 prototype + future batches)
-assets/
+# generated video assets. the opening title (prototype-2026-08) is part of
+# the web surface (cycle 13) and ships in git. other prototypes (e.g. the
+# failed prototype 4 vignette) are kept on disk for the record but stay
+# out of git. future batch generations should be added to gitignore as
+# specific files, not via a blanket rule.
+assets/videos/prototype-2026-08/civil-society-accountability-infrastructure.mp4

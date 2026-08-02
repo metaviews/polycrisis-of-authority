@@ -293,8 +293,10 @@ reads naturally.
 
 **Final asset:**
 `assets/videos/prototype-2026-08/polycrisis-of-authority-opening.mp4`
-(~12.5s, 2560×1440, h264+aac, ~16.7MB). Gitignored; produced
-from committed prompts + script.
+(~12.5s, 2560×1440, h264+aac, ~16.7MB). Part of the surface —
+ships in git and is wired into the web surface by cycle 13.
+Prompts + script remain in the repo for re-rendering if the
+asset ever needs to be regenerated.
 
 ### Scripts and prompts that shipped this cycle
 

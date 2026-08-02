@@ -7,7 +7,7 @@
 
 ## Why
 
-`assets/videos/prototype-2026-08/polycrisis-of-authority-opening.mp4` (~12.5s, 2K, ~16.7MB) shipped in the August 2026 interstitial-video prototype 5 cycle. The artifact exists on disk. The web surface — feature-complete since cycle 12e — does not yet play it.
+`assets/videos/prototype-2026-08/polycrisis-of-authority-opening.mp4` (~12.5s, 2K, ~16.7MB) shipped in the August 2026 interstitial-video prototype 5 cycle as part of the surface. The artifact is committed in git at this path. The web surface — feature-complete since cycle 12e — does not yet play it.
 
 Per Principle 4.4 ("public surfaces wait"), the engine has been stable for a cycle; this is the next natural adornment. Per the locked decisions in `docs/26-interstitial-video.md`, the opening is a single video played at the boundary moments of the run (cold-start, run end) — not between turns. The between-turns interstitials direction is still [open] in the working doc; this cycle does not touch it.
 
@@ -52,13 +52,13 @@ No changes. The opening title is a display concern, not a routing or engine conc
 
 ### Asset path
 
-`assets/videos/prototype-2026-08/polycrisis-of-authority-opening.mp4` is gitignored (per the prototype 5 doc). The web server must serve this asset. Two options:
+`assets/videos/prototype-2026-08/polycrisis-of-authority-opening.mp4` is part of the surface and ships in git at this path. The web server must serve this asset. The chosen shape:
 
-**Option A (preferred):** Static-serve from a new `GET /assets/videos/...` route. The path is whitelisted (only the prototype-2026-08 dir is served). The surface adapter emits `<video src="/assets/videos/prototype-2026-08/polycrisis-of-authority-opening.mp4">`.
+**Static-serve from a new `GET /assets/videos/...` route.** The path is whitelisted (only files under `assets/` that exist on disk and end in `.mp4` are served; everything else is 404). The surface adapter emits `<video src="/assets/videos/prototype-2026-08/polycrisis-of-authority-opening.mp4">`.
 
-**Option B (deferred):** Symlink or copy the asset into a `src/web/public/` dir that the server serves as a static root. More moving parts; defers to A unless A has a path-traversal risk that needs a real static-file middleware.
+Why no static middleware: the surface is small (one mp4) and a dedicated route keeps the dependency footprint at zero. If more assets accumulate, this becomes a candidate for a real static root in a future cycle.
 
-For cycle 13, **Option A with explicit path validation** — the route only serves files under `assets/videos/` that end in `.mp4` and exist on disk; everything else is 404. No `..` resolution, no symlink resolution.
+Path-traversal protection: `rel.includes('..')` rejection + `path.resolve` check that the resolved path is still under `ASSETS_ROOT` + extension whitelist + existence + `isFile` check. All rejected with 404 before any `fs` call.
 
 ## What this cycle does NOT do
 
